@@ -1,5 +1,7 @@
 import random
 
+print("hello kankrai, Trucklife")
+
 # Example structures for the input data
 orderlist = [
     {"orderid": 1, "receptiondate": "2024-06-01", "latitude": 34.05, "longitude": -118.25, "desired_delivery_date": "2024-06-05", "product": 101},

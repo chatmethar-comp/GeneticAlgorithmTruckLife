@@ -8,6 +8,7 @@ orderlist = [
     {"orderid": 1, "receptiondate": "2024-06-01", "latitude": 34.05, "longitude": -118.25, "desired_delivery_date": "2024-06-05", "product": 101},
     {"orderid": 2, "receptiondate": "2024-06-02", "latitude": 36.16, "longitude": -115.15, "desired_delivery_date": "2024-06-06", "product": 102},
     {"orderid": 3, "receptiondate": "2024-06-03", "latitude": 40.71, "longitude": -74.01, "desired_delivery_date": "2024-06-07", "product": 103},
+    {"orderid": 4, "receptiondate": "2024-06-05", "latitude": 40.21, "longitude": -74.31, "desired_delivery_date": "2024-06-07", "product": 104},
     # Add more orders...
 ]
 productlist = [

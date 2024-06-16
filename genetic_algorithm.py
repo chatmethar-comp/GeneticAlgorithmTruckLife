@@ -11,6 +11,7 @@ productlist = [
     {"productid": 101, "productname": "Product A", "weight": 10},
     {"productid": 102, "productname": "Product B", "weight": 20},
     {"productid": 103, "productname": "Product C", "weight": 30},
+    {"productid": 104, "productname": "Product D", "weight": 40},
     # Add more products...
 ]
 trucklist = [

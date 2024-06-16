@@ -1,5 +1,6 @@
 import random
 
+print("Jecko is here")
 print("hello kankrai, Trucklife")
 
 # Example structures for the input data

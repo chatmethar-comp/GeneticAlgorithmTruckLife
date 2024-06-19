@@ -4,7 +4,6 @@ from deap import base, creator, tools, algorithms
 from geopy.distance import great_circle
 import random
 
-# Input data
 orderlist = [
     {"orderid": 1, "receptiondate": "2024-06-01", "latitude": 34.05, "longitude": -118.25, "desired_delivery_date": "2024-06-05", "product": 101},
     {"orderid": 2, "receptiondate": "2024-06-02", "latitude": 36.16, "longitude": -115.15, "desired_delivery_date": "2024-06-06", "product": 102},

@@ -7,9 +7,9 @@ a = [[(0,0),(5,20),(6,20)],
      [(5,20),(0,0),(4,20)],
      [(6,20),(4,20),(0,0)]]
 
-API_KEY = 'AIzaSyC4SRkYCBiobk42kWn-WhhqEYAYUv8_WeI'
+API_KEY = 'APIKEY'
 gmaps = googlemaps.Client(key=API_KEY)
-start_coords = (13.743833, 100.562694)
+start_coords = 'coor'
 
 def get_travel_time_and_distance(start_coords,dest_coords):
     directions_result = gmaps.directions(start_coords,
@@ -45,6 +45,7 @@ def create_distance_matrix(locations):
 
 if __name__ == "__main__":
     file_path = 'locations.csv'
+
     locations = read_locations_from_csv(file_path)
     distance_matrix = create_distance_matrix(locations)
     

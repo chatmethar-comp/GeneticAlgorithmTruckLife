@@ -1,9 +1,9 @@
+import numpy as np
+import pandas as pd
+from deap import base, creator, tools, algorithms
+from geopy.distance import great_circle
 import random
 
-print("Jecko is here")
-print("hello kankrai, Trucklife")
-
-# Example structures for the input data
 orderlist = [
     {"orderid": 1, "receptiondate": "2024-06-01", "latitude": 34.05, "longitude": -118.25, "desired_delivery_date": "2024-06-05", "product": 101},
     {"orderid": 2, "receptiondate": "2024-06-02", "latitude": 36.16, "longitude": -115.15, "desired_delivery_date": "2024-06-06", "product": 102},
@@ -14,7 +14,6 @@ productlist = [
     {"productid": 101, "productname": "Product A", "weight": 10},
     {"productid": 102, "productname": "Product B", "weight": 20},
     {"productid": 103, "productname": "Product C", "weight": 30},
-    {"productid": 104, "productname": "Product D", "weight": 40},
     # Add more products...
 ]
 trucklist = [
@@ -30,85 +29,92 @@ outsourcingfee = {
     # Add more outsourcing fees...
 }
 
-# Utility functions
-def calculate_distance(lat1, lon1, lat2, lon2):
-    # Simple Euclidean distance for example purposes
-    return ((lat1 - lat2)**2 + (lon1 - lon2)**2)**0.5
+initial_location = (0.0, 0.0)  # Starting location
 
-def get_product_weight(productid):
-    return next(product["weight"] for product in productlist if product["productid"] == productid)
+# Helper functions
+def get_product_weight(product_id):
+    for product in productlist:
+        if product["productid"] == product_id:
+            return product["weight"]
+    return 0
 
-def initialize_population(pop_size, orders, trucks):
-    population = []
-    for _ in range(pop_size):
-        chromosome = [(random.choice(trucks), order) for order in orders]
-        random.shuffle(chromosome)
-        population.append(chromosome)
-    return population
+def calculate_distance(loc1, loc2):
+    return great_circle(loc1, loc2).kilometers
 
-def calculate_fitness(chromosome):
-    total_cost = 0
-    for truck, order in chromosome:
-        product_weight = get_product_weight(order["product"])
-        if product_weight <= truck["capacity"]:
-            route_distance = calculate_distance(order["latitude"], order["longitude"], truck["latitude"], truck["longitude"])
-            total_cost += route_distance  # Assume cost per km is 1 unit for simplicity
-        else:
-            total_cost += outsourcingfee[order["orderid"]]
-    return 1 / total_cost  # Fitness is the inverse of cost
+def route_distance(route, orders):
+    distance = 0
+    if route:
+        # Distance from initial location to the first order
+        distance += calculate_distance(initial_location, (orders[route[0]]["latitude"], orders[route[0]]["longitude"]))
+        # Distance between orders
+        for i in range(len(route) - 1):
+            distance += calculate_distance(
+                (orders[route[i]]["latitude"], orders[route[i]]["longitude"]),
+                (orders[route[i + 1]]["latitude"], orders[route[i + 1]]["longitude"]),
+            )
+        # Distance from the last order back to the initial location
+        distance += calculate_distance(
+            (orders[route[-1]]["latitude"], orders[route[-1]]["longitude"]),
+            initial_location
+        )
+    return distance
 
-def roulette_wheel_selection(population, fitnesses):
-    total_fitness = sum(fitnesses)
-    probabilities = [f / total_fitness for f in fitnesses]
-    selected_index = random.choices(range(len(population)), probabilities)[0]
-    return population[selected_index]
+def calculate_route_cost(route, orders, truck, outsourcingfee):
+    total_distance = route_distance(route, orders)
+    total_weight = sum(get_product_weight(orders[i]["product"]) for i in route)
 
-def order_crossover(parent1, parent2):
-    start, end = sorted(random.sample(range(len(parent1)), 2))
-    child = [None] * len(parent1)
-    child[start:end] = parent1[start:end]
-    fill_position = end
-    for gene in parent2:
-        if gene not in child:
-            if fill_position == len(parent1):
-                fill_position = 0
-            child[fill_position] = gene
-            fill_position += 1
-    return child
+    if total_weight > truck["capacity"]:
+        return float('inf')  # Penalty for exceeding truck capacity
 
-def swap_mutation(chromosome):
-    i, j = random.sample(range(len(chromosome)), 2)
-    chromosome[i], chromosome[j] = chromosome[j], chromosome[i]
+    outsourcing_cost = sum(outsourcingfee[orders[i]["orderid"]] for i in route if get_product_weight(orders[i]["product"]) > truck["capacity"])
 
-def genetic_algorithm(orders, trucks, pop_size, num_generations):
-    population = initialize_population(pop_size, orders, trucks)
-    best_chromosome = None
-    best_fitness = 0
+    return total_distance + outsourcing_cost
 
-    for generation in range(num_generations):
-        fitnesses = [calculate_fitness(chrom) for chrom in population]
-        new_population = []
+# Genetic Algorithm setup
+creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+creator.create("Individual", list, fitness=creator.FitnessMin)
 
-        for _ in range(pop_size):
-            parent1 = roulette_wheel_selection(population, fitnesses)
-            parent2 = roulette_wheel_selection(population, fitnesses)
-            child = order_crossover(parent1, parent2)
-            if random.random() < 0.1:  # Mutation probability
-                swap_mutation(child)
-            new_population.append(child)
+toolbox = base.Toolbox()
+toolbox.register("indices", random.sample, range(len(orderlist)), len(orderlist))
+toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.indices)
+toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-        population = new_population
+def evaluate(individual):
+    best_truck = None
+    best_cost = float('inf')
+    for truck in trucklist:
+        cost = calculate_route_cost(individual, orderlist, truck, outsourcingfee)
+        if cost < best_cost:
+            best_cost = cost
+            best_truck = truck
+    individual.best_truck = best_truck["truckname"]
+    return best_cost,
 
-        best_generation_chromosome = population[fitnesses.index(max(fitnesses))]
-        best_generation_fitness = max(fitnesses)
+toolbox.register("mate", tools.cxOrdered)
+toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
+toolbox.register("select", tools.selTournament, tournsize=3)
+toolbox.register("evaluate", evaluate)
 
-        if best_generation_fitness > best_fitness:
-            best_fitness = best_generation_fitness
-            best_chromosome = best_generation_chromosome
+def main():
+    random.seed(42)
 
-    return best_chromosome, best_fitness
+    population = toolbox.population(n=50)
+    hof = tools.HallOfFame(1)
 
-# Run the Algorithm
-best_route, best_route_fitness = genetic_algorithm(orderlist, trucklist, pop_size=100, num_generations=1000)
-print("Best Route:", best_route)
-print("Best Route Fitness:", best_route_fitness)
+    algorithms.eaSimple(population, toolbox, cxpb=0.7, mutpb=0.2, ngen=100, halloffame=hof, verbose=True)
+
+    best_individual = hof[0]
+    best_cost, = evaluate(best_individual)
+    best_truck = best_individual.best_truck
+    best_route = best_individual
+
+    print("Best Truck:", best_truck)
+    print("Best Route:", best_route)
+    print("Best Route Cost:", best_cost)
+
+    for index in best_route:
+        order = orderlist[index]
+        print(f"Order ID: {order['orderid']}, Location: ({order['latitude']}, {order['longitude']}), Product ID: {order['product']}, Desired Delivery Date: {order['desired_delivery_date']}")
+
+if __name__ == "__main__":
+    main()

@@ -1,15 +1,17 @@
-# pip install googlemaps
 import googlemaps
 from datetime import datetime
 import csv
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 a = [[(0,0),(5,20),(6,20)],
      [(5,20),(0,0),(4,20)],
      [(6,20),(4,20),(0,0)]]
 
-API_KEY = 'APIKEY'
-gmaps = googlemaps.Client(key=API_KEY)
-start_coords = 'coor'
+gmaps = googlemaps.Client(key=os.getenv('GOOGLE_MAP_CLIENT_API_KEY'))
+start_coords = (os.getenv('WAREHOUSE_LAT'), os.getenv('WAREHOUSE_LNG'))
 
 def get_travel_time_and_distance(start_coords,dest_coords):
     directions_result = gmaps.directions(start_coords,
@@ -44,6 +46,7 @@ def create_distance_matrix(locations):
     return distance_matrix
 
 if __name__ == "__main__":
+    # example of turning list of position to weighted graph (represented in adjacency matrix)
     file_path = 'locations.csv'
 
     locations = read_locations_from_csv(file_path)

@@ -1,0 +1,222 @@
+id: 1
+n_coord: 1
+Truck_weight: 500
+Execution time(seconds): 1.4502
+Peak memory usage(MB): 0.0402
+
+id: 2
+n_coord: 2
+Truck_weight: 500
+Execution time(seconds): 1.8863
+Peak memory usage(MB): 0.0210
+
+id: 3
+n_coord: 3
+Truck_weight: 500
+Execution time(seconds): 2.1090
+Peak memory usage(MB): 0.0220
+
+id: 4
+n_coord: 5
+Truck_weight: 900
+Execution time(seconds): 2.4610
+Peak memory usage(MB): 0.0201
+
+id: 5
+n_coord: 3
+Truck_weight: 900
+Execution time(seconds): 2.5430
+Peak memory usage(MB): 0.0197
+
+id: 6
+n_coord: 4
+Truck_weight: 900
+Execution time(seconds): 2.5022
+Peak memory usage(MB): 0.0201
+
+id: 7
+n_coord: 7
+Truck_weight: 2600
+Execution time(seconds): 7.6671
+Peak memory usage(MB): 0.0275
+
+id: 8
+n_coord: 8
+Truck_weight: 3050
+Execution time(seconds): 8.6441
+Peak memory usage(MB): 0.0289
+
+id: 9
+n_coord: 9
+Truck_weight: 3200
+Execution time(seconds): 9.6745
+Peak memory usage(MB): 0.0303
+
+id: 10
+n_coord: 10
+Truck_weight: 3750
+Execution time(seconds): 10.8904
+Peak memory usage(MB): 0.0317
+
+id: 11
+n_coord: 1
+Truck_weight: 500
+Execution time(seconds): 1.4574
+Peak memory usage(MB): 0.0184
+
+id: 12
+n_coord: 2
+Truck_weight: 800
+Execution time(seconds): 2.4433
+Peak memory usage(MB): 0.0197
+
+id: 13
+n_coord: 3
+Truck_weight: 1200
+Execution time(seconds): 3.5053
+Peak memory usage(MB): 0.0210
+
+id: 14
+n_coord: 4
+Truck_weight: 1450
+Execution time(seconds): 4.5477
+Peak memory usage(MB): 0.0222
+
+id: 15
+n_coord: 5
+Truck_weight: 2050
+Execution time(seconds): 5.6373
+Peak memory usage(MB): 0.0244
+
+id: 16
+n_coord: 6
+Truck_weight: 2250
+Execution time(seconds): 6.5970
+Peak memory usage(MB): 0.0258
+
+id: 17
+n_coord: 7
+Truck_weight: 2600
+Execution time(seconds): 7.6647
+Peak memory usage(MB): 0.0274
+
+id: 18
+n_coord: 8
+Truck_weight: 3050
+Execution time(seconds): 8.6543
+Peak memory usage(MB): 0.0287
+
+id: 19
+n_coord: 9
+Truck_weight: 3200
+Execution time(seconds): 9.7116
+Peak memory usage(MB): 0.0303
+
+id: 20
+n_coord: 10
+Truck_weight: 3750
+Execution time(seconds): 10.7544
+Peak memory usage(MB): 0.0319
+
+id: 21
+n_coord: 1
+Truck_weight: 500
+Execution time(seconds): 1.4265
+Peak memory usage(MB): 0.0184
+
+id: 22
+n_coord: 2
+Truck_weight: 800
+Execution time(seconds): 2.4940
+Peak memory usage(MB): 0.0197
+
+id: 23
+n_coord: 3
+Truck_weight: 1200
+Execution time(seconds): 3.5829
+Peak memory usage(MB): 0.0210
+
+id: 24
+n_coord: 4
+Truck_weight: 1450
+Execution time(seconds): 4.5620
+Peak memory usage(MB): 0.0222
+
+id: 25
+n_coord: 5
+Truck_weight: 2050
+Execution time(seconds): 5.5426
+Peak memory usage(MB): 0.0245
+
+id: 26
+n_coord: 6
+Truck_weight: 2250
+Execution time(seconds): 6.6190
+Peak memory usage(MB): 0.0258
+
+id: 27
+n_coord: 7
+Truck_weight: 2600
+Execution time(seconds): 7.7365
+Peak memory usage(MB): 0.0275
+
+id: 28
+n_coord: 8
+Truck_weight: 3050
+Execution time(seconds): 8.5830
+Peak memory usage(MB): 0.0289
+
+id: 29
+n_coord: 9
+Truck_weight: 2800
+Execution time(seconds): 6.6357
+Peak memory usage(MB): 0.0278
+
+id: 30
+n_coord: 10
+Truck_weight: 3000
+Execution time(seconds): 7.6487
+Peak memory usage(MB): 0.0276
+
+id: 31
+n_coord: 4
+Truck_weight: 3000
+Execution time(seconds): 4.4967
+Peak memory usage(MB): 0.0440
+
+id: 32
+n_coord: 4
+Truck_weight: 3500
+Execution time(seconds): 4.4750
+Peak memory usage(MB): 0.0440
+
+id: 33
+n_coord: 6
+Truck_weight: 900
+Execution time(seconds): 2.4478
+Peak memory usage(MB): 0.0413
+
+id: 34
+n_coord: 6
+Truck_weight: 1500
+Execution time(seconds): 3.4939
+Peak memory usage(MB): 0.0219
+
+id: 35
+n_coord: 6
+Truck_weight: 2000
+Execution time(seconds): 4.5261
+Peak memory usage(MB): 0.0266
+
+id: 36
+n_coord: 6
+Truck_weight: 4500
+Execution time(seconds): 6.6078
+Peak memory usage(MB): 0.0468
+
+id: 37
+n_coord: 6
+Truck_weight: 2250
+Execution time(seconds): 6.4532
+Peak memory usage(MB): 0.0468
+

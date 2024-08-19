@@ -108,14 +108,6 @@ def genetic_algorithm(coordinates, pop_size, elite_size, mutation_rate, generati
     print("Final distance: " + str(rank_routes(population)[0][0]))
     return best_route
 
-pop_size = 100
-elite_size = 20
-mutation_rate = 0.01
-generations = 500
-
-best_route = genetic_algorithm(coordinates, pop_size, elite_size, mutation_rate, generations, Truck_weight)
-print("Best route: ", best_route)
-
 def plot_route(route):
     plt.figure(figsize=(10, 6))
     x = [point[1] for point in route] + [route[0][1]]
@@ -126,4 +118,12 @@ def plot_route(route):
     plt.title('Best Delivery Route in Thailand')
     plt.show()
 
-plot_route(best_route)
+def optimize_route(coordinates, max_weight, pop_size=100, elite_size=20, mutation_rate=0.01, generations=500):
+    best_route = genetic_algorithm(coordinates, pop_size, elite_size, mutation_rate, generations, max_weight)
+    return best_route
+
+if __name__ == "__main__":
+    best_route = optimize_route(coordinates, Truck_weight)
+    print("Best route: ", best_route)
+    plot_route(best_route)
+

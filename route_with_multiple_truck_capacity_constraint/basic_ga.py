@@ -1,7 +1,9 @@
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+import osm
 
+# Coordinates with weights
 coordinates = [
     (13.7563, 100.5018, 500),   # Bangkok with weight
     (18.7883, 98.9853, 300),    # Chiang Mai with weight
@@ -23,10 +25,12 @@ coordinates = [
     (18.8036, 99.0824, 350),    # Mae Hong Son with weight
     (13.6692, 100.6627, 300)    # Samut Songkhram with weight
 ]
-total_weight = sum(coordinates[i][2] for i in range(len(coordinates)))
-print(total_weight)
 
-Truck_weights = [1900, 1900, 1900, 1000] 
+# Define the common starting point
+starting_point = (13.7438, 100.5626, 0)  # Example: Bangkok without weight
+
+# Truck weights
+Truck_weights = [1900, 1900, 1900, 1000]
 
 def haversine_distance(point1, point2):
     lat1, lon1, _ = point1
@@ -42,7 +46,7 @@ def distribute_locations(locations, truck_weights):
     shuffled_locations = locations[:]
     random.shuffle(shuffled_locations)
     
-    routes = [[] for _ in range(len(truck_weights))]
+    routes = [[starting_point] for _ in range(len(truck_weights))]  # Initialize routes with starting point
     truck_loads = [0] * len(truck_weights)
     
     for location in shuffled_locations:
@@ -52,13 +56,16 @@ def distribute_locations(locations, truck_weights):
                 routes[i].append(location)
                 truck_loads[i] += weight
                 break
-        
+
+    for route in routes:
+        route.append(starting_point)  # Ensure each route returns to the starting point
+    
     return routes
 
 def route_distance(route):
     total_distance = 0
-    for i in range(len(route)):
-        total_distance += haversine_distance(route[i], route[(i + 1) % len(route)])
+    for i in range(len(route) - 1):
+        total_distance += haversine_distance(route[i], route[i + 1])
     return total_distance
 
 def solution_distance(solution):
@@ -68,7 +75,7 @@ def initial_population(pop_size, coordinates, truck_weights):
     population = []
     while len(population) < pop_size:
         solution = distribute_locations(coordinates, truck_weights)
-        if all(sum(coord[2] for coord in route) <= weight for route, weight in zip(solution, truck_weights)):
+        if all(sum(coord[2] for coord in route[1:-1]) <= weight for route, weight in zip(solution, truck_weights)):
             population.append(solution)
     return population
 
@@ -83,28 +90,26 @@ def selection(fitness_results, elite_size):
 def crossover(parent1, parent2, truck_weights):
     child = []
     
-    location_to_truck = {}
-    for truck_index, truck_route in enumerate(parent1):
-        for location in truck_route:
-            location_to_truck[location] = truck_index
-
-    crossover_point1 = random.randint(0, len(parent1) - 1)
-    crossover_point2 = random.randint(crossover_point1, len(parent1) - 1)
+    crossover_point1 = random.randint(1, len(parent1) - 2)
+    crossover_point2 = random.randint(crossover_point1, len(parent1) - 2)
     
-    child_routes = [[] for _ in range(len(parent1))]
+    child_routes = [[starting_point] for _ in range(len(parent1))]
 
     for i in range(crossover_point1, crossover_point2 + 1):
-        child_routes[i] = parent1[i]
+        child_routes[i].extend(parent1[i][1:-1])
 
     for i, truck_route in enumerate(parent2):
-        for location in truck_route:
+        for location in truck_route[1:-1]:
             if location not in [loc for sublist in child_routes for loc in sublist]:
                 assigned = False
                 for j in range(len(child_routes)):
-                    if child_routes[j] == [] or (sum([loc[2] for loc in child_routes[j]]) + location[2]) <= truck_weights[j]:
+                    if sum([loc[2] for loc in child_routes[j]]) + location[2] <= truck_weights[j]:
                         child_routes[j].append(location)
                         assigned = True
                         break
+
+    for route in child_routes:
+        route.append(starting_point)  # Ensure route returns to starting point
 
     return child_routes
 
@@ -113,23 +118,15 @@ def mutate(solution, mutation_rate, truck_weights):
 
     for i, truck_route in enumerate(mutated_solution):
         if random.random() < mutation_rate:
-            if len(truck_route) > 1:
-                loc1, loc2 = random.sample(range(len(truck_route)), 2)
+            if len(truck_route) > 3:  # More than start, end, and one location
+                loc1, loc2 = random.sample(range(1, len(truck_route) - 1), 2)
                 truck_route[loc1], truck_route[loc2] = truck_route[loc2], truck_route[loc1]
-            else:
-                subset_size = random.randint(2, len(truck_route))
-                subset_indices = random.sample(range(len(truck_route)), subset_size)
-                subset = [truck_route[idx] for idx in subset_indices]
-                random.shuffle(subset)
-                for idx, loc in zip(subset_indices, subset):
-                    truck_route[idx] = loc
 
-            if sum([loc[2] for loc in truck_route]) > truck_weights[i]:
-                mutated_solution = distribute_locations([loc for truck in solution for loc in truck], truck_weights)
+            if sum([loc[2] for loc in truck_route[1:-1]]) > truck_weights[i]:
+                mutated_solution = distribute_locations([loc for truck in solution for loc in truck if loc != starting_point], truck_weights)
                 break
 
     return mutated_solution
-
 
 def next_generation(current_gen, elite_size, mutation_rate, coordinates, truck_weights):
     ranked_solutions = rank_solutions(current_gen)
@@ -157,8 +154,8 @@ def plot_solution(solution):
     plt.figure(figsize=(10, 6))
     colors = ['r', 'b', 'g']
     for i, route in enumerate(solution):
-        x = [point[1] for point in route] + [route[0][1]]
-        y = [point[0] for point in route] + [route[0][0]]
+        x = [point[1] for point in route]
+        y = [point[0] for point in route]
         plt.plot(x, y, 'o-', color=colors[i % len(colors)], label=f'Truck {i+1}')
     plt.xlabel('Longitude')
     plt.ylabel('Latitude')
@@ -167,10 +164,40 @@ def plot_solution(solution):
     plt.show()
 
 def optimize_routes(coordinates, truck_weights, pop_size=200, elite_size=40, mutation_rate=0.01, generations=800):
-    best_solution = genetic_algorithm(coordinates, truck_weights, pop_size, elite_size, mutation_rate, generations)
+    best_solution = genetic_algorithm(coordinates, truck_weights, pop_size, elite_size, mutation_rate,generations)
     return best_solution
+
+
+
+
+#############################################################################
+
+
+def remove_third_element(nested_list):
+    new_list = []
+
+    for sublist in nested_list:
+        modified_sublist = []
+        for tpl in sublist:
+            modified_tuple = tpl[:2]
+            modified_sublist.append(modified_tuple)
+
+        new_list.append(modified_sublist)
+    return new_list
+
+def route_data(solution):
+    seperate_route_data = []
+    for i in range(len(solution)):
+        temp_route_data = osm.get_route_data(solution[i])
+        seperate_route_data.append(temp_route_data)
+    return seperate_route_data
+
 
 if __name__ == "__main__":
     best_solution = optimize_routes(coordinates, Truck_weights)
+    best_solution_coor_only = remove_third_element(best_solution)
+    route_map = osm.create_map(best_solution_coor_only,osm.colors)
+    route_map.save("unconnected_routes_map_colored.html")
+    print("Map has been saved as unconnected_routes_map_colored.html")
     print("Best solution: ", best_solution)
     plot_solution(best_solution)

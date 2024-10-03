@@ -3,11 +3,10 @@ import random
 
 Truck_weights = [1900, 1900, 1900, 1000]
 Truck_Driver_Working_Hour = 12
-ex_data=[[1.0, 20240204, 14.02644447, 100.6919272, 20240209, 20240212, 4.0], 
-         [2.0, 20240201, 13.96554796, 100.5245274, 20240204, 20240208, 1.0], 
-         [3.0, 20240205, 14.1010167, 100.5554815, 20240210, 20240211, 3.0], 
-         [4.0, 20240205, 14.02366024, 100.7877536, 20240209, 20240212, 8.0], 
-         [5.0, 20240206, 13.79198072, 100.2948867, 20240211, 20240212, 2.0]]
+filepath_order = 'order.csv'
+filepath_product = 'product.csv'
+ex_data = func.read_csv_to_list(filepath_order)
+product_list = func.read_csv_to_list(filepath_product)
 
 def gen_individual(order_data,truck_weights):
     #gen structure
@@ -45,11 +44,11 @@ def initialize_population(pop_size,order_data,truck_weights):
     population = []
     while len(population) < pop_size:
         population.append(gen_individual(order_data,truck_weights))
-
     return population
 
+def calculate_outsourcing_fee():
+    return 0
 
-x = initialize_population(1000,ex_data,Truck_weights)
+new_order = func.product_to_weight(ex_data,product_list)
+x = initialize_population(1000,new_order,Truck_weights)
 print(x)
-
-# print(ex_data)

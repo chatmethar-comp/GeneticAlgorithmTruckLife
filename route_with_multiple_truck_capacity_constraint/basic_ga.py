@@ -193,7 +193,6 @@ def route_data(solution):
         seperate_route_data.append(temp_route_data)
     return seperate_route_data
 
-
 if __name__ == "__main__":
     start_time = time.time()
     best_solution = optimize_routes(coordinates, Truck_weights)

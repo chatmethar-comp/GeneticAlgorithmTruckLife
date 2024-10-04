@@ -1,6 +1,11 @@
 import csv
 import numpy as np
+import time
 import osm
+
+filepath_outsourcing = 'outsourcing.csv'
+
+start_time = time.time()
 
 def read_csv_to_list(file_path):
     data_list = []
@@ -16,9 +21,12 @@ def read_csv_to_list(file_path):
                     float_row.append(date_int)                  
                 else:
                     try:
-                        float_row.append(float(value))  # Convert to int if it's not a date
+                        float_row.append(int(value))  # Convert to int if it's not a date
                     except ValueError:
-                        float_row.append(value) 
+                        try:
+                            float_row.append(float(value)) 
+                        except ValueError:
+                            float_row.append(value) 
             data_list.append(float_row)
     return data_list
 
@@ -29,15 +37,62 @@ def product_to_weight(order_data,product_list):
                 order[-1] = product_list[i][2]
     return order_data
 
-def create_weight_graph(coor_list):
-    weight_graph = []
-    for i in range(len(coor_list)):
-        weight_graph.append([])
-        for j in range(len(coor_list)):
-            weight_graph[i].append(osm.get_travel_time(coor_list[i],coor_list[j]))
-    return weight_graph
+def create_distance_matrix(warehouse_location,order_data_w):
+    distance_matrix = osm.get_osrm_distance_matrix(warehouse_location,order_data_w, mode='driving')
+    return distance_matrix
 
-def calculate_distance_and_travel_time():
-    distance = 0
-    travel_time = 0
-    return (distance,travel_time)
+def create_time_matrix(warehouse_location,order_data_w):
+    time_matrix = osm.get_osrm_travel_time_matrix(warehouse_location,order_data_w, mode='driving')
+    return time_matrix
+
+def calculate_distance(distance_matrix,start_orderID,destination_orderID):
+    distance = distance_matrix[start_orderID][destination_orderID]
+    return distance
+
+def calculate_time(time_matrix,start_orderID,destination_orderID):
+    time = time_matrix[start_orderID][destination_orderID]
+    return time
+
+def calculate_outsourcing_fee(individual,order_data_w,distance_matrix):
+    outsorce_fee = 0;
+    for i in range(len(individual)):
+        for j in range(len(individual[i][len(individual[0])-1])):
+            outsourcce_item = individual[i][len(individual[0])-1][j]
+            dis = calculate_distance(distance_matrix,0,outsourcce_item)
+            if order_data_w[outsourcce_item-1][6] < 500:
+                if dis < 10:
+                    outsorce_fee+=1000
+                elif dis < 20:
+                    outsorce_fee+=1100
+                elif dis < 30:
+                    outsorce_fee+=1200
+                elif dis < 40:
+                    outsorce_fee+=1300
+                else:
+                    outsorce_fee+=1400
+            elif order_data_w[outsourcce_item-1][6] < 1000:
+                if dis < 10:
+                    outsorce_fee+=1200
+                elif dis < 20:
+                    outsorce_fee+=1400
+                elif dis < 30:
+                    outsorce_fee+=1600
+                elif dis < 40:
+                    outsorce_fee+=1800
+                else:
+                    outsorce_fee+=2000
+            elif order_data_w[outsourcce_item-1][6] < 1500:
+                if dis < 10:
+                    outsorce_fee+=1400
+                elif dis < 20:
+                    outsorce_fee+=1700
+                elif dis < 30:
+                    outsorce_fee+=2000
+                elif dis < 40:
+                    outsorce_fee+=2300
+                else:
+                    outsorce_fee+=2600
+    return outsorce_fee
+# outsourcing = read_csv_to_list(filepath_outsourcing)
+# print(outsourcing)
+# print(f"time taken {start_time - time.time()}")

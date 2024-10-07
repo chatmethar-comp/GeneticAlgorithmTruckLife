@@ -93,6 +93,40 @@ def calculate_outsourcing_fee(individual,order_data_w,distance_matrix):
                 else:
                     outsorce_fee+=2600
     return outsorce_fee
+
+def to_map_input(route_data, order_data):
+    """
+    Transforms route and order data into the input format expected by the create_map_with_day_truck_routes function.
+    
+    :param route_data: List of routes containing day and truck assignment information.
+    :param order_data: List of order data with lat/lon and delivery dates.
+    :return: Dictionary where keys are days and values are lists of truck routes (each list contains truck coordinate routes).
+    """
+    # Create a dictionary to hold the routes by day
+    daily_truck_routes = {}
+
+    # Convert the route data into a dictionary with day as the key
+    for day_entry in route_data:
+        day = day_entry[0]
+        daily_truck_routes[day] = [[] for _ in range(len(day_entry[1:]))]  # Initialize empty lists for each truck
+
+        # Go through each truck's assigned orders
+        for truck_idx, order_indices in enumerate(day_entry[1:]):
+            truck_coords = []
+            
+            # Collect lat/lon data for each order assigned to the truck
+            for order_idx in order_indices:
+                for order in order_data:
+                    if order[0] == order_idx:
+                        lat, lon = order[2], order[3]
+                        truck_coords.append((lat, lon))
+                        break  # Stop after finding the order
+
+            # Assign the collected coordinates to the truck's route for the day
+            daily_truck_routes[day][truck_idx] = truck_coords
+
+    return daily_truck_routes
+
 # outsourcing = read_csv_to_list(filepath_outsourcing)
 # print(outsourcing)
 # print(f"time taken {start_time - time.time()}")

@@ -130,6 +130,6 @@ def get_travel_time(coor_s, coor_e):
     else:
         return None, None
 
-t1 = get_travel_time((13.7563, 100.5018, 0),(18.7883, 98.9853, 0))
+t1 = get_travel_time((13.7438, 100.5626, 0),(13.72950272,100.7328243, 0))
 print(t1)
 

@@ -1,7 +1,11 @@
 import requests
-# import csv
+import csv
 import numpy as np
+import folium
+from itertools import cycle
+import polyline
 
+colors = ["red", "blue", "green", "purple", "orange", "darkred", "darkblue", "darkgreen", "cadetblue", "pink"]
 # Function to generate OSRM distance matrix
 def get_osrm_distance_matrix(warehouse_location,order_data_w, mode='driving'):
     """
@@ -51,7 +55,91 @@ def get_osrm_travel_time_matrix(warehouse_location,order_data_w, mode='driving')
     osrm_data = response.json()
     # Extract the travel time matrix (in seconds)
     travel_time_matrix = np.array(osrm_data['durations'])
-    return travel_time_matrix
+    return travel_time_matrix/3600
+
+def get_route_data(coords):
+    """
+    Fetch route data from OSRM for a set of coordinates.
+    
+    :param coords: List of tuples representing lat, lon coordinates for the route.
+    :return: Encoded polyline geometry of the route or None if an error occurs.
+    """
+    coord_pairs = ";".join([f"{lon},{lat}" for lat, lon in coords])
+    url = f"http://router.project-osrm.org/route/v1/driving/{coord_pairs}?overview=full&geometries=polyline"
+    response = requests.get(url)
+    data = response.json()
+    
+    if "routes" in data and data["routes"]:
+        route_geometry = data['routes'][0]['geometry']
+        return route_geometry
+    else:
+        return None
+
+def create_map_with_day_truck_routes(daily_truck_routes, colors):
+    """
+    Create a folium map with routes filtered by day and truck, each with toggle buttons.
+    
+    :param daily_truck_routes: Dictionary where keys are days and values are lists of truck routes (each route is a list of coordinates).
+    :param colors: List of colors for the routes.
+    :return: Folium Map object.
+    """
+    # Find the first non-empty truck route to initialize the map
+    first_route_coords = None
+    for day, truck_routes in daily_truck_routes.items():
+        for truck_route in truck_routes:
+            if truck_route:  # Check if the truck has a non-empty route
+                first_route_coords = truck_route[0]  # Get the first coordinate of the first non-empty route
+                break
+        if first_route_coords:
+            break
+
+    if not first_route_coords:
+        raise ValueError("No valid truck routes found to initialize the map.")
+
+    # Initialize the map centered at the first valid truck route's first location
+    m = folium.Map(location=first_route_coords, zoom_start=6)
+
+    # Cycle through the colors if there are more trucks than colors available
+    color_cycle = cycle(colors)
+
+    # Loop through each day and each truck's route
+    for day, truck_routes in daily_truck_routes.items():
+        for truck_idx, truck_route_coords in enumerate(truck_routes):
+            if truck_route_coords:  # Check if the truck has a route for the day
+                # Fetch the route data using the get_route_data function
+                route_data = get_route_data(truck_route_coords)
+                
+                if route_data:  # If route data is successfully retrieved
+                    color = next(color_cycle)  # Get the next color in the cycle
+
+                    # Create a feature group for each truck's route for each day
+                    feature_group = folium.FeatureGroup(name=f"Day {day} - Truck {truck_idx + 1}", show=True)
+
+                    # Decode the polyline returned from get_route_data
+                    decoded_route = polyline.decode(route_data)  # Use polyline package to decode
+
+                    # Plot the truck's route using the decoded coordinates
+                    folium.PolyLine(decoded_route, color=color, weight=2.5, opacity=1).add_to(feature_group)
+
+                    # Add markers for the start and end points of the route
+                    if decoded_route:
+                        # Marker for the start point
+                        start_coord = decoded_route[0]
+                        start_popup_text = f"Start - Day {day} - Truck {truck_idx + 1}"
+                        folium.Marker(start_coord, popup=start_popup_text, icon=folium.Icon(color=color)).add_to(feature_group)
+
+                        # Marker for the end point
+                        end_coord = decoded_route[-1]
+                        end_popup_text = f"End - Day {day} - Truck {truck_idx + 1}"
+                        folium.Marker(end_coord, popup=end_popup_text, icon=folium.Icon(color=color)).add_to(feature_group)
+
+                    # Add the feature group to the map
+                    feature_group.add_to(m)
+
+    # Add layer control to the map to toggle routes
+    folium.LayerControl().add_to(m)
+
+    return m
 
 
 # Test Here!!!!!!!!
@@ -77,16 +165,10 @@ def get_osrm_travel_time_matrix(warehouse_location,order_data_w, mode='driving')
 #                  [19, 20240206, 13.63464473, 100.5075653, 20240206, 20240210, 1100], 
 #                  [20, 20240203, 13.56140732, 100.9938387, 20240206, 20240210, 700]]
 #     warehouse_location = [13.7438, 100.5626]
-#     # Generate distance matrix for driving
-#     matrix = get_osrm_distance_matrix(warehouse_location,locations, mode='driving')
-    
-#     # Print the matrix
+#     matrix = get_osrm_travel_time_matrix(warehouse_location,locations, mode='driving')
 #     print("Distance Matrix (in meters):")
 #     print(matrix)
-
 #     with open('GFG', 'w') as f:
         
-#         # using csv.writer method from CSV package
 #         write = csv.writer(f)
-        
 #         write.writerows(matrix)

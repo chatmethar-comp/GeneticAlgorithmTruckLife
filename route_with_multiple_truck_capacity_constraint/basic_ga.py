@@ -25,6 +25,7 @@ coordinates = [
     (14.9514, 102.0608, 400),   # Roi Et with weight
     (18.8036, 99.0824, 350),    # Mae Hong Son with weight
     (13.6692, 100.6627, 300)    # Samut Songkhram with weight
+    
 ]
 
 # Define the common starting point

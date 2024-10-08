@@ -2,6 +2,7 @@ import csv
 import numpy as np
 import time
 import osm
+import copy
 
 filepath_outsourcing = 'outsourcing.csv'
 
@@ -52,6 +53,18 @@ def calculate_distance(distance_matrix,start_orderID,destination_orderID):
 def calculate_time(time_matrix,start_orderID,destination_orderID):
     time = time_matrix[start_orderID][destination_orderID]
     return time
+
+def cal_route_time(time_matrix,individual):
+    sum_time = 0
+    for date in individual:
+        start_place = 0
+        for truck in range(1,len(date)-1):
+            for coord in date[truck]:
+                time = time_matrix[start_place][coord]
+                sum_time+=time
+                start_place=coord
+            sum_time+=time_matrix[start_place][0]
+    return sum_time
 
 def calculate_outsourcing_fee(individual,order_data_w,distance_matrix):
     outsorce_fee = 0;

@@ -2,11 +2,11 @@ import func
 import random
 import time
 import copy
-import csv
 import osm
 
+start_time = time.time()
 warehouse_location = [13.7438, 100.5626]
-Truck_weights = [1900, 1900, 1900, 1000]
+Truck_weights = [1900, 1900, 1900, 1100]
 Truck_Driver_Working_Hour = 12
 filepath_order = 'order.csv'
 filepath_product = 'product.csv'
@@ -58,7 +58,7 @@ def gen_individual(order_data_w,truck_weights):
         individual[i].append([]) #append outsorcing list of the day
 
     #start randomly assign data into outsourcing box
-    shuffle_order_data_w = order_data_w[:]
+    shuffle_order_data_w = copy.deepcopy(order_data_w)
     random.shuffle(shuffle_order_data_w)
     for data in shuffle_order_data_w:
         random.shuffle(individual)
@@ -149,7 +149,7 @@ def mutate(individual,truck_weights,order_data_w,mutation_rate,work_time,time_ma
             truck_work_time = 0
             start_place = 0
             if random.random() < mutation_rate:
-                if random.random()<=0.9:
+                if random.random()<=0.6:
                     source_truck = random.randint(1,len(date)-2)
                     try:
                         item_from_truck_source = random.choice(date[source_truck])
@@ -171,17 +171,20 @@ def mutate(individual,truck_weights,order_data_w,mutation_rate,work_time,time_ma
                         date[source_truck].remove(item_from_truck_source)
                     else:
                         continue
-                if random.random()<=0.99:
-                    random_truck = random.randint(1,len(date)-2)
-                    try:
-                        random_item = random.choice(date[random_truck])
-                    except IndexError:
-                        break
-                    # print(f"Truck {random_truck} Item {random_item}")
-                    date[-1].append(random_item)
-                    date[random_truck].remove(random_item)
+                random_truck = random.randint(1,len(date)-2)
+                try:
+                    random_item = random.choice(date[random_truck])
+                except IndexError:
+                    break
+                # print(f"Truck {random_truck} Item {random_item}")
+                date[-1].append(random_item)
+                date[random_truck].remove(random_item)
+                for truck in range(1,len(date)-1):
+                    random.shuffle(date[truck])
         else:
-            break
+            if random.random()<mutation_rate:
+                for truck in range(1,len(date)-1):
+                    date[truck].shuffle
     # try:
     #     validate_individual(mutated_solution,order_data_w)
     # except ValueError:
@@ -189,13 +192,13 @@ def mutate(individual,truck_weights,order_data_w,mutation_rate,work_time,time_ma
     #     raise ValueError(f"Missing orders")
     return mutated_solution
 
-def calculate_fitness_score(individual,order_data_w,distance_matrix):
+def calculate_fitness_score(individual,order_data_w,distance_matrix,time_matrix):
     out_source_fee = func.calculate_outsourcing_fee(individual,order_data_w,distance_matrix)
-    fitness_score = out_source_fee
+    fitness_score = out_source_fee+((func.cal_route_time(time_matrix,individual))/1000)
     return fitness_score
 
-def rank_solutions(population,order_data_w,distance_matrix):
-    fitness_results = [(calculate_fitness_score(individual,order_data_w,distance_matrix), individual) for individual in population]
+def rank_solutions(population,order_data_w,distance_matrix,time_matrix):
+    fitness_results = [(calculate_fitness_score(individual,order_data_w,distance_matrix,time_matrix), individual) for individual in population]
     fitness_results.sort(key=lambda x: x[0])
     return fitness_results
 
@@ -205,7 +208,7 @@ def selection(fitness_results, elite_size):
 
 
 def next_generation(current_gen, elite_size, mutation_rate, order_data_w, distance_matrix, time_matrix, work_time, truck_weights):
-    ranked_solutions = rank_solutions(current_gen, order_data_w, distance_matrix)
+    ranked_solutions = rank_solutions(current_gen, order_data_w, distance_matrix,time_matrix)
     current_best_fitness = ranked_solutions[0][0]  # Lowest outsourcing fee in this generation
     
     print(f"Current gen best fitness score: {current_best_fitness}")
@@ -215,8 +218,8 @@ def next_generation(current_gen, elite_size, mutation_rate, order_data_w, distan
     while len(children) < len(current_gen):
         parent1, parent2 = random.sample(selection_results, 2)
         child = crossover(parent1, parent2, order_data_w)
-        child = assign_to_truck(child, truck_weights, order_data_w, work_time, time_matrix)
-        children.append(mutate(child, truck_weights, order_data_w, mutation_rate, work_time, time_matrix))
+        child = mutate(child, truck_weights, order_data_w, mutation_rate, work_time, time_matrix)
+        children.append(assign_to_truck(child, truck_weights, order_data_w, work_time, time_matrix))
     
     return children  
 
@@ -228,21 +231,21 @@ def genetic_algorithm(pop_size, generations, elite_size, mutation_rate, order_da
         print(f"Generation {gen}")
         population = next_generation(population, elite_size, mutation_rate, order_data_w, distance_matrix, time_matrix, work_time, truck_weights)
     
-    best_solution = rank_solutions(population, order_data_w, distance_matrix)[0][1]
+    best_solution = rank_solutions(population, order_data_w, distance_matrix, time_matrix)[0][1]
     return best_solution
 
 
 
-def optimize_routes(order_data_w, distance_matrix, time_matrix, work_time, truck_weights, pop_size=1000, elite_size=200, mutation_rate=0.05, generations=10):
+def optimize_routes(order_data_w, distance_matrix, time_matrix, work_time, truck_weights, pop_size=1000, elite_size=200, mutation_rate=0.05, generations=60):
     best_solution = genetic_algorithm(pop_size, generations, elite_size, mutation_rate, order_data_w, distance_matrix, time_matrix, work_time, truck_weights)
     return best_solution
 
 if __name__ == "__main__":
-    start_time = time.time()
     best_solution = optimize_routes(new_order,distance_m, time_m, Truck_Driver_Working_Hour, Truck_weights)
     best_out_sourcing_fee = func.calculate_outsourcing_fee(best_solution,new_order, distance_m)
     print("Best solution: ", best_solution)
     for date in best_solution:
+        print(date)
         for i in range(1,len(date)-1):
             truck_load = 0
             truck_work_time = 0
@@ -251,11 +254,15 @@ if __name__ == "__main__":
                 truck_load += new_order[order-1][-1]
                 truck_work_time += time_m[start_place][order]
                 start_place = order
-            print(date)
             print(f"Truck{i} load:{truck_load}, work time:{truck_work_time}")
 
     print("best out fee: ",best_out_sourcing_fee)
     print(f"Time taken {time.time()-start_time}")
     to_map = func.to_map_input(best_solution,new_order)
-    d = osm.create_map_with_day_truck_routes(to_map,osm.colors)
-    d.save('map.html')
+    osm.create_map_tree(warehouse_location,to_map,osm.colors)
+    # d = osm.create_map_with_day_truck_routes(warehouse_location,to_map,osm.colors)
+    # d.save('map.html')
+
+
+    # x = gen_individual(new_order,Truck_weights)
+    # print(func.cal_route_time(time_m,x,Truck_weights))

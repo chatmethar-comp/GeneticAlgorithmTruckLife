@@ -3,9 +3,10 @@ import csv
 import numpy as np
 import folium
 from itertools import cycle
+from folium.plugins.treelayercontrol import TreeLayerControl
 import polyline
 
-colors = ["red", "blue", "green", "purple", "orange", "darkred", "darkblue", "darkgreen", "cadetblue", "pink"]
+colors = ["red", "blue", "green", "purple", "orange", "darkred", "darkblue", "darkgreen", "cadetblue"]
 # Function to generate OSRM distance matrix
 def get_osrm_distance_matrix(warehouse_location,order_data_w, mode='driving'):
     """
@@ -75,7 +76,7 @@ def get_route_data(coords):
     else:
         return None
 
-def create_map_with_day_truck_routes(daily_truck_routes, colors):
+def create_map_with_day_truck_routes(warehouse_location, daily_truck_routes, colors):
     """
     Create a folium map with routes filtered by day and truck, each with toggle buttons.
     
@@ -107,13 +108,15 @@ def create_map_with_day_truck_routes(daily_truck_routes, colors):
         for truck_idx, truck_route_coords in enumerate(truck_routes):
             if truck_route_coords:  # Check if the truck has a route for the day
                 # Fetch the route data using the get_route_data function
+                truck_route_coords.append(warehouse_location)
+                truck_route_coords.insert(0,warehouse_location)
                 route_data = get_route_data(truck_route_coords)
                 
                 if route_data:  # If route data is successfully retrieved
                     color = next(color_cycle)  # Get the next color in the cycle
 
                     # Create a feature group for each truck's route for each day
-                    feature_group = folium.FeatureGroup(name=f"Day {day} - Truck {truck_idx + 1}", show=True)
+                    feature_group = folium.FeatureGroup(name=f"Truck {truck_idx + 1}", show=True)
 
                     # Decode the polyline returned from get_route_data
                     decoded_route = polyline.decode(route_data)  # Use polyline package to decode
@@ -124,15 +127,10 @@ def create_map_with_day_truck_routes(daily_truck_routes, colors):
                     # Add markers for the start and end points of the route
                     if decoded_route:
                         # Marker for the start point
-                        start_coord = decoded_route[0]
-                        start_popup_text = f"Start - Day {day} - Truck {truck_idx + 1}"
-                        folium.Marker(start_coord, popup=start_popup_text, icon=folium.Icon(color=color)).add_to(feature_group)
-
+                        for i, coord in enumerate(truck_route_coords):
+                            popup_text = f"Checkpoint {i+1}"
+                            folium.Marker(coord, popup=popup_text, icon=folium.Icon(color=color)).add_to(feature_group)
                         # Marker for the end point
-                        end_coord = decoded_route[-1]
-                        end_popup_text = f"End - Day {day} - Truck {truck_idx + 1}"
-                        folium.Marker(end_coord, popup=end_popup_text, icon=folium.Icon(color=color)).add_to(feature_group)
-
                     # Add the feature group to the map
                     feature_group.add_to(m)
 
@@ -141,6 +139,47 @@ def create_map_with_day_truck_routes(daily_truck_routes, colors):
 
     return m
 
+def create_map_tree(warehouse_location,daily_routes,colors):
+    m = folium.Map(location=[46.603354, 1.8883335], zoom_start=5)
+    color_cycle = cycle(colors)
+    ovt = {
+        "label": "All Date Route",
+        "select_all_check_box": True,
+        "children": []
+    }
+    x = 0
+    for date in list(daily_routes.keys()):
+        ovt["children"].append({ 
+                "label": date,
+                "select_all_checkbox": True, 
+                "children": []
+            })
+        a=0
+        for i in range(1,len(daily_routes[date])):
+            color = next(color_cycle)
+            if daily_routes[date][i]:
+                ovt["children"][x]["children"].append({ 
+                    "label": f"Truck {i}",
+                    "select_all_checkbox": True, 
+                    "children": []
+                })
+                daily_routes[date][i].append(warehouse_location)
+                daily_routes[date][i].insert(0,warehouse_location)
+                route_data = get_route_data(daily_routes[date][i])
+                decoded_route = polyline.decode(route_data)
+                ovt["children"][x]["children"][a]["children"].append(
+                    { "label": f"Route", "layer": folium.PolyLine(decoded_route, color=color, weight=2.5, opacity=1).add_to(m) }
+                )
+                for j, coord in enumerate(daily_routes[date][i]):
+                    popup_text = f"Checkpoint {j+1}"
+                    ovt["children"][x]["children"][a]["children"].append(
+                    { "label": f"CheckPoint {j}", "layer": folium.Marker(coord, popup=popup_text, icon=folium.Icon(color=color)).add_to(m) }
+                    )
+                a+=1
+        x+=1
+    TreeLayerControl(overlay_tree=ovt).add_to(m)
+    m.save('m.html')
+    return 0
 
 # Test Here!!!!!!!!
 # if __name__ == "__main__":

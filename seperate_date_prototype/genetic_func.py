@@ -94,46 +94,72 @@ def initialize_population(pop_size,order_data_w,truck_weights):
         population.append(gen_individual(order_data_w,truck_weights))
     return population
 
-def crossover(individual1,individual2,order_data_w,time_matrix,truck_weights,work_time):
+# def crossover(individual1,individual2,order_data_w,time_matrix,truck_weights,work_time):
+#     individual1_c = copy.deepcopy(individual1)
+#     individual2_c = copy.deepcopy(individual2)
+#     amount_of_order = len(order_data_w)
+#     for i in range(random.randint(1,int(amount_of_order/2))): #random amount of time to crossover
+#         date_cross=random.randint(0,len(individual1_c)-1)
+#         try:
+#             item_sw = random.choice(individual1_c[date_cross][-1]) #randomly choose item in outsource truck of random date
+#             start_date = order_data_w[item_sw-1][4] #date that item_sw can be deliver
+#             end_date = order_data_w[item_sw-1][5]
+#             delivery_dates = list(range(start_date, end_date + 1))
+#             random.shuffle(individual2_c) 
+#             for date in individual2_c: #loop for each date in individual randomly
+#                 if set([date[0]]).issubset(delivery_dates): #if that date is in deliverable date
+#                     truck_to_assign = random.randint(1,len(individual1_c[0])+1) #randomly choose truck index
+#                     for i in range(len(truck_weights)+1):
+#                         while truck_to_assign==0:
+#                             truck_to_assign+=1
+#                         truck_to_assign_weight_capacity = truck_weights[truck_to_assign-1]
+#                         truck_work_time,truck_load = func.cal_truck_time_load(date[truck_to_assign],time_matrix,order_data_w)
+#                         if truck_to_assign<=len(truck_weights):
+#                             if (truck_load+order_data_w[item_sw-1][-1]<=truck_to_assign_weight_capacity) and truck_work_time<=work_time:
+#                                 if func.check_time_add_item(item_sw, date[truck_to_assign], order_data_w,time_matrix):
+#                                     date[truck_to_assign].append(item_sw)
+#                                     break
+#                         else:
+#                             date[truck_to_assign].append(item_sw)
+#                             break
+#                         truck_to_assign = (truck_to_assign+1)%(len(truck_weights)+2)
+#                     for truck in date[1:]:
+#                         try:
+#                             truck.remove(item_sw)
+#                             break
+#                         except ValueError:
+#                             continue
+#                 else:
+#                     continue
+#         except IndexError:
+#             continue
+#     individual2_c.sort(key=lambda individual :individual[0])
+#     # try:
+#     #     validate_individual(individual2_c,order_data_w)
+#     # except ValueError:
+#     #     print("error due to crossover")
+#     #     raise ValueError(f"Missing orders")
+#     return individual2_c
+
+
+def crossover(individual1,individual2,order_data_w):
     individual1_c = copy.deepcopy(individual1)
     individual2_c = copy.deepcopy(individual2)
     amount_of_order = len(order_data_w)
-    for i in range(random.randint(1,int(amount_of_order/2))): #random amount of time to crossover
+    for i in range(random.randint(1,int(amount_of_order/2))):
         date_cross=random.randint(0,len(individual1_c)-1)
         try:
-            item_sw = random.choice(individual1_c[date_cross][-1]) #randomly choose item in outsource truck of random date
-            start_date = order_data_w[item_sw-1][4] #date that item_sw can be deliver
-            end_date = order_data_w[item_sw-1][5]
-            delivery_dates = list(range(start_date, end_date + 1))
-            random.shuffle(individual2_c) 
-            for date in individual2_c: #loop for each date in individual randomly
-                if set([date[0]]).issubset(delivery_dates): #if that date is in deliverable date
-                    truck_to_assign = random.randint(1,len(individual1_c[0])+1) #randomly choose truck index
-                    for i in range(len(truck_weights)+1):
-                        while truck_to_assign==0:
-                            truck_to_assign+=1
-                        truck_to_assign_weight_capacity = truck_weights[truck_to_assign-1]
-                        truck_work_time,truck_load = func.cal_truck_time_load(date[truck_to_assign],time_matrix,order_data_w)
-                        if truck_to_assign<=len(truck_weights):
-                            if (truck_load+order_data_w[item_sw-1][-1]<=truck_to_assign_weight_capacity) and truck_work_time<=work_time:
-                                if func.check_time_add_item(item_sw, date[truck_to_assign], order_data_w,time_matrix):
-                                    date[truck_to_assign].append(item_sw)
-                                    break
-                        else:
-                            date[truck_to_assign].append(item_sw)
-                            break
-                        truck_to_assign = (truck_to_assign+1)%(len(truck_weights)+2)
-                    for truck in date[1:]:
-                        try:
-                            truck.remove(item_sw)
-                            break
-                        except ValueError:
-                            continue
-                else:
-                    continue
-        except IndexError:
+            item_sw = random.choice(individual1_c[date_cross][-1])
+            for i in range(len(individual2_c)):
+                for j in range(1,len(individual2_c[i])):
+                    try:
+                        individual2_c[i][j].remove(item_sw)
+                        individual2_c[date_cross][-1].append(item_sw)
+                        break
+                    except ValueError:
+                        continue
+        except IndexError: 
             continue
-    individual2_c.sort(key=lambda individual :individual[0])
     # try:
     #     validate_individual(individual2_c,order_data_w)
     # except ValueError:
@@ -143,7 +169,7 @@ def crossover(individual1,individual2,order_data_w,time_matrix,truck_weights,wor
 
 def assign_to_truck(individual,truck_weights,order_data_w,work_time,time_matrix):
     individual_c = copy.deepcopy(individual)
-    for i in range(1):
+    for i in range(2):
         for i in range(len(individual_c)):
             # print(f"date{i}")
             truck_load = 0
@@ -261,8 +287,11 @@ def next_generation(current_gen, elite_size, mutation_rate, order_data_w, distan
     children = copy.deepcopy(selection_results)
     while len(children) < len(current_gen):
         parent1, parent2 = random.sample(selection_results, 2)
-        child = crossover(parent1, parent2, order_data_w,time_matrix,truck_weights,work_time)
-        child = mutate(child, truck_weights, order_data_w, mutation_rate, work_time, time_matrix)
+        parent1 = mutate(parent1, truck_weights, order_data_w, mutation_rate, work_time, time_matrix)
+        parent2 = mutate(parent2, truck_weights, order_data_w, mutation_rate, work_time, time_matrix)
+        # child = crossover(parent1, parent2, order_data_w,time_matrix,truck_weights,work_time)
+        child = crossover(parent1, parent2, order_data_w)
+        # child = mutate(child, truck_weights, order_data_w, mutation_rate, work_time, time_matrix)
         children.append(assign_to_truck(child, truck_weights, order_data_w, work_time, time_matrix))
     
     return children  
@@ -280,7 +309,7 @@ def genetic_algorithm(pop_size, generations, elite_size, mutation_rate, order_da
 
 
 
-def optimize_routes(order_data_w, distance_matrix, time_matrix, work_time, truck_weights, pop_size=2000, elite_size=400 , mutation_rate=0.3, generations=60):
+def optimize_routes(order_data_w, distance_matrix, time_matrix, work_time, truck_weights, pop_size=1000, elite_size=200 , mutation_rate=0.3, generations=60):
     best_solution = genetic_algorithm(pop_size, generations, elite_size, mutation_rate, order_data_w, distance_matrix, time_matrix, work_time, truck_weights)
     return best_solution
 

@@ -3,6 +3,7 @@ import numpy as np
 import time
 import osm
 import copy
+import pandas as pd
 
 filepath_outsourcing = 'outsourcing.csv'
 
@@ -157,11 +158,14 @@ def to_map_input(route_data, order_data):
     return daily_truck_routes
 
 def correct_time(hour,minute):
-    hour_c = copy.deepcopy(hour)
-    minute_c = copy.deepcopy(minute)
+    hour_c = hour
+    minute_c = minute
     while minute_c>=60:
         minute_c-=60
         hour_c+=1
+    while minute_c<0:
+        minute_c+=60
+        hour_c-=1
     return(hour_c,minute_c)
 
 def delivered_time(order, order_data_w):
@@ -197,8 +201,117 @@ def check_time_add_item(neworder,truck, order_data_w,time_matrix):
     else:
         # print(f"Ahhh Truck_time{hour_t}:{minute_t} Delivery time {hour_dt}:{minute_dt}")
         return False
+    
+def calculate_wait_time(individual,order_data_w,time_matrix):
+    wait_time=0
+    for date in individual:
+        for truck in date[1:-1]:
+            hour_t = 7
+            minute_t = 0
+            start_place = 0
+            for order in truck:
+                hour_dt,minute_dt = delivered_time(order,order_data_w)
+                hour_t,minute_t = correct_time(hour_t,minute_t+(calculate_time(time_matrix,start_place,order)*60))
+                hour_w = int(hour_dt)-int(hour_t)
+                minute_w = int(minute_dt)-int(minute_t)
+                hour_w,minute_w = correct_time(hour_w,minute_w)
+                wait_time+=(hour_w+(minute_w/60))
+                start_place = order
+    return wait_time;
                 
+def output_as_excel(individual,order_data_w,time_matrix):
+    individual_c = copy.deepcopy(individual)
+    for date in individual_c:
+        for truck in date[1:-1]:
+            hour_t = 7
+            minute_t = 0
+            start_place = 0
+            o = False
+            for order in range(len(truck)*2):
+                if truck[order]:
+                    if type(truck[order]) != list:
+                        last_order = truck[order]
+                        o = True
+                        hour_dt,minute_dt = delivered_time(truck[order],order_data_w)
+                        truck[order] = [truck[order]]
+                        minute_t = str(minute_t)
+                        while len(minute_t) == 1:
+                            minute_t = '0'+minute_t 
+                        minute_dt = str(minute_dt)
+                        while len(minute_dt) == 1:
+                            minute_dt = '0'+minute_dt 
+                        truck[order].append(f'{hour_t}:{minute_t}')
+                        minute_t = int(minute_t)
+                        hour_t,minute_t = correct_time(hour_t,minute_t+int(calculate_time(time_matrix,start_place,truck[order][0])*60))
+                        minute_t = str(minute_t)
+                        while len(minute_t) == 1:
+                            minute_t = '0'+minute_t 
+                        truck.insert(order+1,[f'wait to deliver {truck[order][0]}'])
+                        truck[order].append(f'{hour_t}:{minute_t}')
+                        truck[order+1].append(f'{hour_t}:{minute_t}')
+                        truck[order+1].append(f'{hour_dt}:{minute_dt}')
+                        hour_dt = int(hour_dt)
+                        minute_dt = int(minute_dt)
+                        hour_t = hour_dt 
+                        minute_t = minute_dt
+            if o:
+                truck.append(["Go back to warehouse"])
+                minute_t = str(minute_t)
+                while len(minute_t) == 1:
+                    minute_t = '0'+minute_t 
+                truck[-1].append(f'{hour_t}:{minute_t}')
+                minute_t = int(minute_t)
+                hour_t,minute_t=correct_time(hour_t,minute_t+int(calculate_time(time_matrix,last_order,0)*60))
+                minute_t = str(minute_t)
+                while len(minute_t) == 1:
+                    minute_t = '0'+minute_t 
+                truck[-1].append(f'{hour_t}:{minute_t}')
+    return individual_c;
 
+def Excel_writer(truck_schedule):
+    with pd.ExcelWriter('truck_schedule_output.xlsx', engine='xlsxwriter') as writer:
+        for day_schedule in truck_schedule:
+            # Extract date, truck activities, and outsourcing activities
+            date = day_schedule[0]
+            trucks = day_schedule[1:-1]  # All lists following the date, except the last, are truck activities
+            outsourcing = day_schedule[-1]  # The last element is the outsourcing activities
+
+            # Prepare a list of rows for the DataFrame
+            rows = []
+
+            # Find the maximum number of activities among the trucks for this date
+            max_activities = max(len(truck) for truck in trucks) if trucks else 0
+            max_outsourcing = len(outsourcing)
+
+            # Create rows for each truck's activities
+            for i in range(max(max_activities, max_outsourcing)):
+                row = {}
+                # Fill truck activities
+                for truck_index, truck_activities in enumerate(trucks):
+                    if i < len(truck_activities):
+                        # Convert the activity to a formatted string
+                        activity = truck_activities[i]
+                        row[f'Truck{truck_index + 1}'] = f"{activity[0]}, Start: {activity[1]}, End: {activity[2]}"
+                    else:
+                        row[f'Truck{truck_index + 1}'] = None  # Fill with None if no more activities
+                
+                # Fill outsourcing activities in the last column, only with order number (no time)
+                if i < max_outsourcing:
+                    outsourcing_activity = outsourcing[i]
+                    row['Outsourcing'] = f"Order: {outsourcing_activity}"
+                else:
+                    row['Outsourcing'] = None  # Fill with None if no more outsourcing activities
+
+                # Append the row to the list
+                rows.append(row)
+
+            # Convert rows to DataFrame
+            df = pd.DataFrame(rows)
+
+            # Write each date to a separate sheet named after the date
+            df.to_excel(writer, sheet_name=str(date), index=False)
+
+    print("Truck schedule with order numbers has been written to 'truck_schedule_output.xlsx'")
 
 # outsourcing = read_csv_to_list(filepath_outsourcing)
 # print(outsourcing)

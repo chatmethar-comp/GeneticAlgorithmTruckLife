@@ -140,7 +140,7 @@ def create_map_with_day_truck_routes(warehouse_location, daily_truck_routes, col
     return m
 
 def create_map_tree(warehouse_location,daily_routes,colors):
-    m = folium.Map(location=[46.603354, 1.8883335], zoom_start=5)
+    m = folium.Map(location=warehouse_location, zoom_start=5)
     color_cycle = cycle(colors)
     ovt = {
         "label": "All Date Route",

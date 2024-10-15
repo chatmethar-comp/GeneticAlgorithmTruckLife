@@ -292,9 +292,9 @@ def Excel_writer(truck_schedule):
                 # Fill truck activities
                 for truck_index, truck_activities in enumerate(trucks):
                     if i < len(truck_activities):
-                        # Convert the activity to a formatted string
+                        # Convert the activity to a formatted stringqqqqqqqqqq
                         activity = truck_activities[i]
-                        row[f'Truck{truck_index + 1}'] = f"{activity[0]}, Start: {activity[1]}, End: {activity[2]}"
+                        row[f'Truck{truck_index + 1}'] = f"{activity[0]}, {activity[1]} - {activity[2]}"
                     else:
                         row[f'Truck{truck_index + 1}'] = None  # Fill with None if no more activities
                 

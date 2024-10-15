@@ -14,10 +14,10 @@ Make the truck can retrieve more item from warehouse if time is appropriate
 '''
 
 
-start_time = time.time()
 warehouse_location = [13.7438, 100.5626]
 Truck_weights = [1900, 1900, 1900, 1100]
 Truck_Driver_Working_Hour = 12
+fitness_cache = {}
 filepath_order = 'order.csv'
 filepath_product = 'product.csv'
 ex_data = func.read_csv_to_list(filepath_order)
@@ -176,7 +176,7 @@ def crossover(individual1,individual2,order_data_w):
 
 def assign_to_truck(individual,truck_weights,order_data_w,work_time,time_matrix):
     individual_c = copy.deepcopy(individual)
-    for i in range(3):
+    for i in range(4):
         for date in individual_c:
             # print(f"date{i}")
             truck_load = 0
@@ -292,11 +292,11 @@ def mutate(individual,truck_weights,order_data_w,mutation_rate,work_time,time_ma
     #     raise ValueError(f"Missing orders")
     return mutated_solution
 
-fitness_cache = {}
 
 def calculate_fitness_score(individual,order_data_w,distance_matrix,time_matrix):
     out_source_fee = func.calculate_outsourcing_fee(individual,order_data_w,distance_matrix)
-    fitness_score = out_source_fee+((func.cal_route_time(time_matrix,individual))/1000)
+    wait_time,outsource_score = func.calculate_wait_time_and_outsourcingscore(individual,order_data_w,time_matrix)
+    fitness_score = out_source_fee+wait_time+outsource_score
     return fitness_score
 
 def evaluate_fitness(individual, order_data_w, distance_matrix, time_matrix):
@@ -366,14 +366,16 @@ def genetic_algorithm(pop_size, generations, elite_size, mutation_rate, order_da
     best_solution = rank_solutions(population, order_data_w, distance_matrix, time_matrix)[0][1]
     return best_solution
 
-def optimize_routes(order_data_w, distance_matrix, time_matrix, work_time, truck_weights, pop_size=1250, elite_size=200, mutation_rate=0.3, generations=60):
+def optimize_routes(order_data_w, distance_matrix, time_matrix, work_time, truck_weights, pop_size=1250, elite_size=200, mutation_rate=0.4, generations=70):
     best_solution = genetic_algorithm(pop_size, generations, elite_size, mutation_rate, order_data_w, distance_matrix, time_matrix, work_time, truck_weights)
     return best_solution
 
 if __name__ == "__main__":
     # print(new_order)
     # best_fee_list = []
+    # sumtime=0
     # for i in range(10):
+        start_time = time.time()
         best_solution = optimize_routes(new_order,distance_m, time_m, Truck_Driver_Working_Hour, Truck_weights)
         best_out_sourcing_fee = func.calculate_outsourcing_fee(best_solution,new_order, distance_m)
         print("Best solution: ", best_solution)
@@ -392,12 +394,13 @@ if __name__ == "__main__":
 
         print("best out fee: ",best_out_sourcing_fee)
         print(f"Time taken {time.time()-start_time}")
-        to_map = func.to_map_input(best_solution,new_order)
-        osm.create_map_tree(warehouse_location,to_map,osm.colors)
-        excel_input = func.output_as_excel(best_solution, new_order, time_m)
-        func.Excel_writer(excel_input)
+        # sumtime+=time.time()-start_time
+        # to_map = func.to_map_input(best_solution,new_order)
+        # osm.create_map_tree(warehouse_location,to_map,osm.colors)
+        # excel_input = func.output_as_excel(best_solution, new_order, time_m)
+        # func.Excel_writer(excel_input)
     #     best_fee_list.append(best_out_sourcing_fee)
     # print(f"10 result: {best_fee_list}")
-
+    # print(sumtime)
     # x = gen_individual(new_order,Truck_weights)
     # print(func.cal_route_time(time_m,x,Truck_weights))

@@ -202,8 +202,9 @@ def check_time_add_item(neworder,truck, order_data_w,time_matrix):
         # print(f"Ahhh Truck_time{hour_t}:{minute_t} Delivery time {hour_dt}:{minute_dt}")
         return False
     
-def calculate_wait_time(individual,order_data_w,time_matrix):
+def calculate_wait_time_and_outsourcingscore(individual,order_data_w,time_matrix):
     wait_time=0
+    out_score=0
     for date in individual:
         for truck in date[1:-1]:
             hour_t = 7
@@ -217,7 +218,9 @@ def calculate_wait_time(individual,order_data_w,time_matrix):
                 hour_w,minute_w = correct_time(hour_w,minute_w)
                 wait_time+=(hour_w+(minute_w/60))
                 start_place = order
-    return wait_time;
+        out_score+=len(date[-1])**2
+    return wait_time,out_score;
+
                 
 def output_as_excel(individual,order_data_w,time_matrix):
     individual_c = copy.deepcopy(individual)

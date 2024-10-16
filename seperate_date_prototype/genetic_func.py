@@ -348,7 +348,7 @@ def genetic_algorithm(pop_size, generations, elite_size, mutation_rate, order_da
     best_solution = rank_solutions(population, order_data_w, distance_matrix, time_matrix)[0][1]
     return best_solution
 
-def optimize_routes(order_data_w, distance_matrix, time_matrix, truck_weights, pop_size=1250, elite_size=125, mutation_rate=0.4, generations=80):
+def optimize_routes(order_data_w, distance_matrix, time_matrix, truck_weights, pop_size=1250, elite_size=125, mutation_rate=0.4, generations=75):
     best_solution = genetic_algorithm(pop_size, generations, elite_size, mutation_rate, order_data_w, distance_matrix, time_matrix, truck_weights)
     return best_solution
 

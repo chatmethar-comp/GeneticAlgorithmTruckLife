@@ -257,7 +257,7 @@ def calculate_wait_time_and_outsourcingscore(individual,order_data_w,time_matrix
             hour_t = 7
             minute_t = 0
             start_place = 0
-            for order in truck:
+            for order in truck[1:]:
                 hour_dt,minute_dt = delivered_time(order,order_data_w)
                 hour_t,minute_t = correct_time(hour_t,minute_t+(calculate_time(time_matrix,start_place,order)*60))
                 hour_w = int(hour_dt)-int(hour_t)
@@ -276,6 +276,9 @@ def output_as_excel(individual,order_data_w,time_matrix):
             hour_t = 7
             minute_t = 0
             start_place = 0
+            if len(truck)!=0:
+                hour_dt,minute_dt = delivered_time(truck[0],order_data_w)
+                hour_t,minute_t = correct_time(hour_dt,minute_dt-int(calculate_time(time_matrix,start_place,truck[0])*60))
             o = False
             for order in range(len(truck)*2):
                 if truck[order]:

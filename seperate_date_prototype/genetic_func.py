@@ -147,7 +147,7 @@ def assign_to_truck(individual,truck_weights,order_data_w,time_matrix):
     individual_c = copy.deepcopy(individual)
     for i in range(4):
         for date in individual_c:
-            # print(f"date{i}")
+            #print(f"date{i}")
             truck_load = 0
             try:
                 item_sw = random.choice(date[-1])
@@ -166,9 +166,21 @@ def assign_to_truck(individual,truck_weights,order_data_w,time_matrix):
                     else:
                         continue
                 else:
-                    continue
+                    truck_to_assign = random.randint(1,len(date)-2)
+                    truck_to_assign_weight_capacity = truck_weights[truck_to_assign-1]
+                    for order in date[truck_to_assign]:
+                        truck_load += order_data_w[order-1][-1]
+                    if (truck_load+order_data_w[item_sw-1][-1]<=truck_to_assign_weight_capacity):
+                        if func.check_time_add_item(item_sw, date[truck_to_assign], order_data_w,time_matrix):
+                            date[truck_to_assign].append(item_sw)
+                            date[-1].remove(item_sw)
+                        else:
+                            continue
+                    else: 
+                        continue
             except IndexError:
                 continue
+
     # try:
     #     validate_individual(individual_c,order_data_w)
     # except ValueError:
@@ -334,7 +346,7 @@ def genetic_algorithm(pop_size, generations, elite_size, mutation_rate, order_da
     best_solution = rank_solutions(population, order_data_w, distance_matrix, time_matrix)[0][1]
     return best_solution
 
-def optimize_routes(order_data_w, distance_matrix, time_matrix, truck_weights, pop_size=1250, elite_size=200, mutation_rate=0.4, generations=70):
+def optimize_routes(order_data_w, distance_matrix, time_matrix, truck_weights, pop_size=1250, elite_size=125, mutation_rate=0.4, generations=80):
     best_solution = genetic_algorithm(pop_size, generations, elite_size, mutation_rate, order_data_w, distance_matrix, time_matrix, truck_weights)
     return best_solution
 

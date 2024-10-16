@@ -1,7 +1,5 @@
-for i in range(10):
-    for j in range(10):
-        print(f"i {i}")
-        print(f"j {j}")
-        if j == 9:
-            print("break")
-            break
+a = [1,2,3,4,5,6,7,8,9]
+a.insert(3,99)
+print(a[:3])
+print(a[3])
+print(a[4])

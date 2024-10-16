@@ -154,25 +154,27 @@ def assign_to_truck(individual,truck_weights,order_data_w,time_matrix):
                 # print(f"Order {item_sw}")
                 truck_to_assign = random.randint(1,len(date)-2)
                 truck_to_assign_weight_capacity = truck_weights[truck_to_assign-1]
+                insertion_index = random.randint(0,len(date[truck_to_assign])+1)
                 for order in date[truck_to_assign]:
                     truck_load += order_data_w[order-1][-1]
                 # print(f"Truck{truck_to_assign} load now: {truck_load}")
                 # print(f"Order detail {order_data_w[item_sw-1]}")
                 # print(f"product weight {order_data_w[item_sw-1][-1]}")
                 if (truck_load+order_data_w[item_sw-1][-1]<=truck_to_assign_weight_capacity):
-                    if func.check_time_add_item(item_sw, date[truck_to_assign], order_data_w,time_matrix):
-                        date[truck_to_assign].append(item_sw)
+                    if func.check_time_insert_item(item_sw,insertion_index, date[truck_to_assign], order_data_w,time_matrix):
+                        date[truck_to_assign].insert(insertion_index,item_sw)
                         date[-1].remove(item_sw)
                     else:
                         continue
                 else:
                     truck_to_assign = random.randint(1,len(date)-2)
                     truck_to_assign_weight_capacity = truck_weights[truck_to_assign-1]
+                    insertion_index = random.randint(0,len(date[truck_to_assign])+1)
                     for order in date[truck_to_assign]:
                         truck_load += order_data_w[order-1][-1]
                     if (truck_load+order_data_w[item_sw-1][-1]<=truck_to_assign_weight_capacity):
-                        if func.check_time_add_item(item_sw, date[truck_to_assign], order_data_w,time_matrix):
-                            date[truck_to_assign].append(item_sw)
+                        if func.check_time_insert_item(item_sw,insertion_index, date[truck_to_assign], order_data_w,time_matrix):
+                            date[truck_to_assign].insert(insertion_index,item_sw)
                             date[-1].remove(item_sw)
                         else:
                             continue

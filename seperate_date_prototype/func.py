@@ -186,9 +186,9 @@ def check_time_add_item(neworder,truck, order_data_w,time_matrix):
         if hour_t<hour_dt:
             hour_t,minute_t = hour_dt,minute_dt
         elif hour_t==hour_dt and minute_t<=minute_dt:
-            hour_t,minute_t = hour_dt,minute_dt
+            minute_t = minute_dt
         else:
-            print(f"how tf did we end up here Truck_time{hour_t}:{minute_t} Delivery time {hour_dt}:{minute_dt}")
+            print(f"how tf did we end up here Truck_time{hour_t}:{minute_t} Delivery time {hour_dt}:{minute_dt} adddd")
         start_place = order
     hour_dt,minute_dt = delivered_time(neworder,order_data_w)
     hour_t,minute_t = correct_time(hour_t,minute_t+(calculate_time(time_matrix,start_place,neworder)*60))
@@ -200,6 +200,53 @@ def check_time_add_item(neworder,truck, order_data_w,time_matrix):
         return True
     else:
         # print(f"Ahhh Truck_time{hour_t}:{minute_t} Delivery time {hour_dt}:{minute_dt}")
+        return False
+
+def check_time_insert_item(neworder,insertion_index,truck, order_data_w,time_matrix):
+    hour_t = 7
+    minute_t = 0
+    start_place = 0
+    for order in truck[:insertion_index]:
+        hour_dt,minute_dt = delivered_time(order,order_data_w)
+        hour_t,minute_t = correct_time(hour_t,minute_t+(calculate_time(time_matrix,start_place,order)*60))
+        if hour_t<hour_dt:
+            hour_t,minute_t = hour_dt,minute_dt
+        elif hour_t==hour_dt and minute_t<=minute_dt:
+            minute_t = minute_dt
+        else:
+            print(f"how tf did we end up here Truck_time{hour_t}:{minute_t} Delivery time {hour_dt}:{minute_dt} kkkk")
+        start_place = order
+    hour_dt,minute_dt = delivered_time(neworder,order_data_w)
+    hour_t,minute_t = correct_time(hour_t,minute_t+(calculate_time(time_matrix,start_place,neworder)*60))
+    if hour_t<hour_dt:
+        hour_t,minute_t = hour_dt,minute_dt
+        if insertion_index > len(truck):
+            return True
+        if len(truck) == 0:
+            return True
+        hour_dt,minute_dt = delivered_time(truck[insertion_index],order_data_w)
+        hour_t,minute_t = correct_time(hour_t,minute_t+(calculate_time(time_matrix,neworder,truck[insertion_index])*60))
+        if hour_t<hour_dt:
+            return True
+        elif hour_t==hour_dt and minute_t<=minute_dt:
+            return True
+        else:
+            return False
+    elif hour_t==hour_dt and minute_t<=minute_dt:
+        minute_t = minute_dt
+        if insertion_index > len(truck):
+            return True
+        if len(truck) == 0:
+            return True
+        hour_dt,minute_dt = delivered_time(truck[insertion_index],order_data_w)
+        hour_t,minute_t = correct_time(hour_t,minute_t+(calculate_time(time_matrix,neworder,truck[insertion_index])*60))
+        if hour_t<hour_dt:
+            return True
+        elif hour_t==hour_dt and minute_t<=minute_dt:
+            return True
+        else:
+            return False
+    else:
         return False
     
 def calculate_wait_time_and_outsourcingscore(individual,order_data_w,time_matrix):
@@ -292,7 +339,7 @@ def Excel_writer(truck_schedule):
                 # Fill truck activities
                 for truck_index, truck_activities in enumerate(trucks):
                     if i < len(truck_activities):
-                        # Convert the activity to a formatted stringqqqqqqqqqq
+                        # Convert the activity to a formatted string
                         activity = truck_activities[i]
                         row[f'Truck{truck_index + 1}'] = f"{activity[0]}, {activity[1]} - {activity[2]}"
                     else:

@@ -1,5 +1,4 @@
 import csv
-import numpy as np
 import time
 import osm
 import copy
@@ -8,6 +7,15 @@ import pandas as pd
 filepath_outsourcing = 'outsourcing.csv'
 
 start_time = time.time()
+
+
+def fast_deepcopy_list(data):
+    # Check if data is a list
+    if isinstance(data, list):
+        # Recursively copy each element
+        return [fast_deepcopy_list(item) for item in data]
+    # If it's an immutable (like int), just return it directly (no need to copy)
+    return data
 
 def read_csv_to_list(file_path):
     data_list = []
@@ -71,6 +79,7 @@ def cal_route_time(time_matrix,individual):
             sum_time+=time_matrix[start_place][0]
     return sum_time
 
+truck_load_cache = {}
 def cal_truck_time_load(truck,time_matrix,order_data_w):
     truck_work_time = 0
     start_place = 0
@@ -270,7 +279,7 @@ def calculate_wait_time_and_outsourcingscore(individual,order_data_w,time_matrix
 
                 
 def output_as_excel(individual,order_data_w,time_matrix):
-    individual_c = copy.deepcopy(individual)
+    individual_c = copy.copy(individual)
     for date in individual_c:
         for truck in date[1:-1]:
             hour_t = 7
@@ -307,6 +316,7 @@ def output_as_excel(individual,order_data_w,time_matrix):
                         minute_dt = int(minute_dt)
                         hour_t = hour_dt 
                         minute_t = minute_dt
+                        start_place = truck[order][0]
             if o:
                 truck.append(["Go back to warehouse"])
                 minute_t = str(minute_t)

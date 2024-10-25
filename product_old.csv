@@ -9,3 +9,9 @@
 8,HHH,900
 9,III,1000
 10,JJJ,1100
+
+
+ProductID,ProductName,Weight (kg)
+1,AAA,500
+2,BBB,800
+3,CCC,1000

@@ -35,7 +35,7 @@ time_m = func.create_time_matrix(warehouse_location, new_order)
 #     for _ in range(5):
 start_time = time.time()
 best_solution = genetic_func.optimize_routes(
-    new_order, distance_m, time_m, Truck_weights, generations=80
+    new_order, distance_m, time_m, Truck_weights, generations=10
 )
 best_out_sourcing_fee = func.calculate_outsourcing_fee(
     best_solution, new_order, distance_m
@@ -61,8 +61,9 @@ print(f"Time taken {time.time()-start_time}")
 # sumtime+=time.time()-start_time
 # to_map = func.to_map_input(best_solution, new_order)
 # osm.create_map_tree(warehouse_location, to_map, osm.colors)
-# excel_input = func.output_as_excel(best_solution, new_order, time_m)
-# func.Excel_writer(excel_input)
+excel_input = func.output_as_excel(best_solution, new_order, time_m)
+print(excel_input)
+func.Excel_writer(excel_input)
 #     best_fee_list.append(best_out_sourcing_fee)
 # print(f"10 result: {best_fee_list}")
 # print(sumtime)

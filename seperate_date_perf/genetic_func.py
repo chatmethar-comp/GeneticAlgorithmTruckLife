@@ -46,7 +46,8 @@ def gen_individual(order_data_w,truck_weights):
         individual[date]["Outsourcing"]=[]
         for i in range(truck_num):
             individual[date][f"Truck{i+1}"] = {}
-            individual[date][f"Truck{i+1}"]["weight"] = truck_weights[i] 
+            individual[date][f"Truck{i+1}"]["weight"] = truck_weights[i]
+            individual[date][f"Truck{i+1}"]["capacity"] = [truck_weights[i]]
             individual[date][f"Truck{i+1}"]["order"] = []
 
     shuffle_order_data_w = copy.copy(order_data_w)
@@ -63,115 +64,137 @@ def initialize_population(pop_size,order_data_w,truck_weights):
     return population
 
 
-def crossover(individual1,individual2,order_data_w):
+def crossover(individual1, individual2, order_data_w):
     global desired_delivery_date
     individual1_c = func.fast_deepcopy(individual1)
     individual2_c = func.fast_deepcopy(individual2)
-    for i in range(len(individual1_c.keys())):
+    
+    for _ in range(len(individual1_c.keys())):
         date_cross = random.choice(desired_delivery_date)
-        try:
-            item_sw = random.choice(individual1_c[date_cross]["Outsourcing"])
-            for date in order_delivery_date_cache[item_sw]:
-                for truck in individual2_c[date].keys():
-                    if truck != "Outsourcing":
-                        try:
-                            individual2_c[date][truck]["order"].remove(item_sw)
-                            individual2_c[date][truck]["weight"]+=order_data_w[item_sw-1][-1]
-                            individual2_c[date_cross]["Outsourcing"].append(item_sw)
-                            break
-                        except ValueError:
-                            continue
-        except IndexError: 
-            continue
+        
+        if not individual1_c[date_cross]["Outsourcing"]:
+            continue  # Skip if there are no items to swap for the chosen date
+        
+        outsource_item = random.choice(individual1_c[date_cross]["Outsourcing"])
+        
+        for date in order_delivery_date_cache[outsource_item]:
+            for truck, truck_data in individual2_c[date].items():
+                if truck == "Outsourcing":
+                    if outsource_item in truck_data:
+                        truck_data.remove(outsource_item)
+                        individual2_c[date_cross]["Outsourcing"].append(outsource_item)
+                    break  # Move to next item after swapping
+                else:
+                    try:
+                        item_index = truck_data["order"].index(outsource_item)
+                        zero_indices = [i for i, x in enumerate(truck_data["order"]) if x == 0]
+                        
+                        capacity_index = next(
+                            (cap_index for cap_index, index in enumerate(zero_indices) if item_index <= index),
+                            len(zero_indices) - 1
+                        )
+                        
+                        del truck_data["order"][item_index]
+                        truck_data["capacity"][capacity_index] += order_data_w[outsource_item - 1][-1]
+                        
+                        individual2_c[date_cross]["Outsourcing"].append(outsource_item)
+                        break
+                    except ValueError:
+                        continue  # Move to next truck if item not found in this truck's order
     return individual2_c
 
 def assign_to_truck(individual, order_data_w, time_matrix):
-    global desired_delivery_date
+    global desired_delivery_date, truck_num
     individual_c = func.fast_deepcopy(individual)
 
-    for i in range(4):
+    for _ in range(4):  # Attempt up to four reassignments
         for date in desired_delivery_date:
-            try:
-                # Get random outsourced order
-                outsourcing_orders = individual_c[date]["Outsourcing"]
-                if not outsourcing_orders:
-                    continue  # Skip if no orders left in outsourcing
+            # Get random outsourced order, skip if none available
+            outsourcing_orders = individual_c[date]["Outsourcing"]
+            if not outsourcing_orders:
+                continue
 
-                item_sw = random.choice(outsourcing_orders)
+            outsourced_order = random.choice(outsourcing_orders)
+            order_weight = order_data_w[outsourced_order - 1][-1]
 
-                # Precompute order weight
-                order_weight = order_data_w[item_sw-1][-1]
+            # Attempt assignment to a truck with two attempts
+            for _ in range(2):
+                truck_to_assign = random.randint(1, truck_num)
+                truck_info = individual_c[date][f"Truck{truck_to_assign}"]
+                truck_orders = truck_info["order"]
 
-                # Try to assign to a truck
-                for _ in range(2):  # Max two attempts to assign to a truck
-                    truck_to_assign = random.randint(1, truck_num)
-                    truck_info = individual_c[date][f"Truck{truck_to_assign}"]
-                    truck_weight_capacity = truck_info["weight"]
-
-                    if order_weight <= truck_weight_capacity:
-                        # Generate random insertion index only once
-                        truck_orders = truck_info["order"]
-                        insertion_index = random.randint(0, len(truck_orders))
-
-                        if func.check_time_insert_item(item_sw, insertion_index, truck_orders, order_data_w, time_matrix):
-                            # Perform the insertion and update weight
-                            truck_orders.insert(insertion_index, item_sw)
-                            truck_info["weight"] -= order_weight
-                            outsourcing_orders.remove(item_sw)
-                            break  # Exit loop after successful assignment
-
-            except IndexError:
-                continue  # Skip if any indexing error occurs (e.g., empty outsourcing)
-
+                # Determine insertion point and capacity index
+                insertion_index = random.randint(0, len(truck_orders))
+                zero_indices = [i for i, x in enumerate(truck_orders) if x == 0]
+                
+                capacity_index = next(
+                    (cap_index for cap_index, idx in enumerate(zero_indices) if insertion_index <= idx),
+                    len(zero_indices) - 1
+                )
+                
+                # Check weight capacity and perform insertion if conditions are met
+                if order_weight <= truck_info["capacity"][capacity_index]:
+                    if func.check_time_insert_item(outsourced_order, insertion_index, truck_orders, order_data_w, time_matrix):
+                        truck_orders.insert(insertion_index, outsourced_order)
+                        truck_info["capacity"][capacity_index] -= order_weight
+                        outsourcing_orders.remove(outsourced_order)
+                        break  # Exit after successful assignment
     return individual_c
 
 
 def mutate(individual, order_data_w, mutation_rate, time_matrix):
-    global desired_delivery_date
+    global desired_delivery_date, truck_num
     mutated_solution = func.fast_deepcopy(individual)
-    truck_more_than_one = truck_num > 1  # Boolean flag for truck count
+    multiple_trucks = truck_num > 1
 
     for date in desired_delivery_date:
         if random.random() < mutation_rate:
-            # Move order from Outsourcing to a random date
-            for order in mutated_solution[date]["Outsourcing"]:
+            # Move orders from Outsourcing to a random date's Outsourcing
+            outsourcing_orders = mutated_solution[date]["Outsourcing"]
+            for order in outsourcing_orders[:]:  # Copy to avoid mutation during iteration
                 if order:
                     random_date = random.choice(order_delivery_date_cache[order])
                     mutated_solution[random_date]["Outsourcing"].append(order)
-                    mutated_solution[date]["Outsourcing"].remove(order)
+                    outsourcing_orders.remove(order)
 
-            if truck_more_than_one:
-                if random.random() <= 0.6:
-                    source_truck = random.randint(1, truck_num)
+            # Inter-truck order reassignment if there are multiple trucks
+            if multiple_trucks and random.random() <= 0.6:
+                source_truck_num = random.randint(1, truck_num)
+                source_truck = mutated_solution[date][f"Truck{source_truck_num}"]
+                
+                if source_truck["order"]:  # Ensure the source truck has orders
+                    item_from_truck = random.choice(source_truck["order"])
+                    if item_from_truck:
+                        target_truck_num = random.choice([i for i in range(1, truck_num + 1) if i != source_truck_num])
+                        target_truck = mutated_solution[date][f"Truck{target_truck_num}"]
 
-                    # Get a random order from the source truck
-                    source_order_list = mutated_solution[date][f"Truck{source_truck}"]["order"]
-                    if not source_order_list:
-                        continue  # Skip if the truck is empty
+                        order_weight = order_data_w[item_from_truck - 1][-1]
+                        if order_weight <= target_truck["capacity"][-1]:
+                            if func.check_time_add_item(item_from_truck, target_truck["order"], order_data_w, time_matrix):
+                                target_truck["order"].append(item_from_truck)
+                                target_truck["capacity"][-1] -= order_weight
+                                source_truck["order"].remove(item_from_truck)
+                                source_truck["capacity"][-1] += order_weight
 
-                    item_from_truck_source = random.choice(source_order_list)
+            # Randomly move a truck's item to Outsourcing
+            random_truck_num = random.randint(1, truck_num)
+            random_truck = mutated_solution[date][f"Truck{random_truck_num}"]
+            valid_items = [i for i, x in enumerate(random_truck["order"]) if x != 0]
+            
+            if valid_items:  # Only proceed if there are non-zero items to choose from
+                random_item_index = random.choice(valid_items)
+                item_to_move = random_truck["order"][random_item_index]
+                
+                # Move order to Outsourcing and adjust capacity
+                mutated_solution[date]["Outsourcing"].append(item_to_move)
+                random_truck["capacity"][-1] += order_data_w[item_to_move - 1][-1]
+                random_truck["order"].remove(item_to_move)
 
-                    # Find a truck to assign this order
-                    truck_to_assign = random.randint(1, truck_num)
-                    while truck_to_assign == source_truck:
-                        truck_to_assign = random.randint(1, truck_num)
-
-                    # Check weight capacity and time constraints
-                    if (order_data_w[item_from_truck_source - 1][-1] <= mutated_solution[date][f"Truck{truck_to_assign}"]["weight"]):
-                        if func.check_time_add_item(item_from_truck_source, mutated_solution[date][f"Truck{truck_to_assign}"]["order"], order_data_w, time_matrix):
-                            mutated_solution[date][f"Truck{truck_to_assign}"]["order"].append(item_from_truck_source)
-                            mutated_solution[date][f"Truck{truck_to_assign}"]["weight"] -= order_data_w[item_from_truck_source - 1][-1]
-                            mutated_solution[date][f"Truck{source_truck}"]["order"].remove(item_from_truck_source)
-                            mutated_solution[date][f"Truck{source_truck}"]["weight"] += order_data_w[item_from_truck_source - 1][-1]
-
-            # Handle moving a random item from a random truck to Outsourcing
-            random_truck = random.randint(1, truck_num)
-            random_order_list = mutated_solution[date][f"Truck{random_truck}"]["order"]
-            if random_order_list:  # Only proceed if the truck is not empty
-                random_item = random.choice(random_order_list)
-                mutated_solution[date]["Outsourcing"].append(random_item)
-                mutated_solution[date][f"Truck{random_truck}"]["order"].remove(random_item)
-                mutated_solution[date][f"Truck{random_truck}"]["weight"] += order_data_w[random_item - 1][-1]
+        # Randomly add a rest period (0) to trucks
+        for truck_key, truck_data in mutated_solution[date].items():
+            if truck_key != "Outsourcing" and truck_data["order"] and random.random() < mutation_rate:
+                truck_data["order"].append(0)
+                truck_data["capacity"].append(truck_data["weight"])
 
     return mutated_solution
 
@@ -281,7 +304,7 @@ for date in desired_delivery_date:
         if key == 'Outsourcing':
             print(f"Outsourcing: {best_solution[date]["Outsourcing"]}")
         else:
-            print(f"{key}: Weight {best_solution[date][key]["weight"]}")
+            print(f"{key}: Weight {best_solution[date][key]["capacity"]}")
             print(f"Order {best_solution[date][key]["order"]}")
 print("best out fee: ", best_out_sourcing_fee)
 print(f"Time taken {time.time()-start_time}")
@@ -291,3 +314,5 @@ osm.create_map_tree(warehouse_location, to_map, osm.colors)
 
 excel_input = func.output_as_excel(best_solution, new_order, time_m, desired_delivery_date)
 func.Excel_writer(excel_input)
+
+print(f"Time taken {time.time()-start_time}")

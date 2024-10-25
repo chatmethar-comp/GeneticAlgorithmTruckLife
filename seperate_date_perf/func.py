@@ -55,9 +55,10 @@ def fast_deepcopy(data):
         
         for truck, info in trucks.items():
             # Ensure we only process valid truck data
-            if isinstance(info, dict) and "weight" in info and "order" in info:
+            if isinstance(info, dict) and "weight" in info and "order" in info and "capacity" in info:
                 copied_trucks[truck] = {
                     "weight": info["weight"],  # Shallow copy of immutable data
+                    "capacity": info["capacity"][:],
                     "order": info["order"][:]  # Deep copy only the list
                 }
 
@@ -365,8 +366,8 @@ def output_as_excel(truck_routes, order_data_w, time_matrix, desired_delivery_da
                             minute_t = int(minute_t)
 
                         # Process each order in the truck
-                        for order in orders:
-                            if order:
+                        if orders:
+                            for order in orders:
                                 order_time_str = f'{hour_t:02}:{minute_t:02}'  # Current time string
                                 
                                 # Update time after delivery

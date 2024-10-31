@@ -4,7 +4,7 @@ import osm
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import ProcessPoolExecutorz
+from concurrent.futures import ProcessPoolExecutor
 
 warehouse_location = [13.7438, 100.5626]
 Truck_weights = [1000, 1000, 1000, 1000, 1000, 1000, 2000, 2000, 2000, 2000]
@@ -423,10 +423,10 @@ start_time = time.time()
 best_solution = optimize_routes(
     new_order, distance_m, time_m, Truck_weights, generations=150
 )
+best_solution = func.clean_solution(best_solution)
 best_out_sourcing_fee = func.calculate_outsourcing_fee(
     best_solution, new_order, distance_m, desired_delivery_date
 )
-print("Best solution: ", best_solution)
 for date in desired_delivery_date:
     print(date)
     for key in best_solution[date].keys():

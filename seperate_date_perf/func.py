@@ -515,3 +515,24 @@ def out_put_time_show(truck, order_data_w, time_matrix):
         # Update the start place for the next iteration
         start_place = order
     return hour_t, minute_t
+
+def clean_solution(best_solution):
+    best_solution_c = fast_deepcopy(best_solution)
+    for date in best_solution_c.keys():
+        for truck_num, truck in best_solution_c[date].items():
+            if truck_num!="Outsourcing":
+                truck_order = truck["order"]
+                truck_capacity = truck["capacity"]
+                while truck["weight"] in truck_capacity:
+                    for capacity in truck_capacity:
+                        print(f"cap {truck_capacity}")
+                        capacity_index = truck_capacity.index(capacity)
+                        indices = [i for i, x in enumerate(truck["order"]) if x == 0] 
+                        print(f"Truck {truck_num} indices{indices} capacity {capacity} capindex {capacity_index}" )
+                        if capacity == truck["weight"]:
+                            print(f"from {date}:{truck_num} capacity index: {indices[capacity_index-1]}")
+                            del truck_order[indices[capacity_index-1]]
+                            del truck_capacity[capacity_index]
+                            break
+    
+    return best_solution_c

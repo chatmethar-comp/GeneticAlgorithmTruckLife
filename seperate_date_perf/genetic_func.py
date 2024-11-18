@@ -4,7 +4,7 @@ import osm
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import ProcessPoolExecutorz
+from concurrent.futures import ProcessPoolExecutor
 
 warehouse_location = [13.7438, 100.5626]
 Truck_weights = [1000, 1000, 1000, 1000, 1000, 1000, 2000, 2000, 2000, 2000]

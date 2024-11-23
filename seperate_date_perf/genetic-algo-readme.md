@@ -73,10 +73,9 @@ flowchart TB
 
 3. **Fitness Evaluation**
    - Considers:
-     - Outsourcing costs
-     - Waiting times
-     - Route efficiency
-     - Capacity violations
+     - `out_source_fee` : out-sourcing cost
+     - `wait_time` : total waiting time of every order when reach earlier
+     - `outsource_score` : distribution of outsource decision
 
 ## Usage
 

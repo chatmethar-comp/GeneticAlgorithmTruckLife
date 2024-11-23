@@ -4,7 +4,6 @@ import osm
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import ProcessPoolExecutor
 
 warehouse_location = [13.7438, 100.5626]
 Truck_weights = [1000, 1000, 1000, 1000, 1000, 1000, 2000, 2000, 2000, 2000]
@@ -61,7 +60,7 @@ def gen_individual(order_data_w, truck_weights):
         individual[rand_date]["Outsourcing"].append(order[0])
     return individual
 
-
+# no use
 def initialize_population(pop_size, order_data_w, truck_weights):
     population = []
     while len(population) < pop_size:
@@ -431,10 +430,10 @@ for date in desired_delivery_date:
     print(date)
     for key in best_solution[date].keys():
         if key == "Outsourcing":
-            print(f"Outsourcing: {best_solution[date]["Outsourcing"]}")
+            print(f"Outsourcing: {best_solution[date]['Outsourcing']}")
         else:
-            print(f"{key}: Weight {best_solution[date][key]["capacity"]}")
-            print(f"Order {best_solution[date][key]["order"]}")
+            print(f"{key}: Weight {best_solution[date][key]['capacity']}")
+            print(f"Order {best_solution[date][key]['order']}")
             hour, minute = func.out_put_time_show(
                 best_solution[date][key]["order"], new_order, time_m
             )

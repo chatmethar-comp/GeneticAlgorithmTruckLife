@@ -168,7 +168,7 @@ def create_map_with_day_truck_routes(warehouse_location, daily_truck_routes, col
     return m
 
 
-def create_map_tree(warehouse_location, daily_routes, colors):
+def create_map_tree(warehouse_location, daily_routes, colors, output_path):
     m = folium.Map(location=warehouse_location, zoom_start=5)
     color_cycle = cycle(colors)
     ovt = {"label": "All Date Route", "select_all_check_box": True, "children": []}
@@ -209,7 +209,7 @@ def create_map_tree(warehouse_location, daily_routes, colors):
                 a += 1
         x += 1
     TreeLayerControl(overlay_tree=ovt).add_to(m)
-    m.save("m.html")
+    m.save(output_path)
     return 0
 
 

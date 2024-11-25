@@ -9,11 +9,12 @@ import os
 from datetime import datetime
 
 def main():
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     # Directory structure
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     INPUT_DIR = os.path.join(BASE_DIR, "input")
-    OUTPUT_DIR = os.path.join(BASE_DIR, "output")
-    CONFIG_DIR = os.path.join(BASE_DIR, "config")
+    OUTPUT_DIR = os.path.join(BASE_DIR, "output", timestamp)
+    CONFIG_DIR = os.path.join(BASE_DIR, "output", timestamp)
 
     # Create directories if they don't exist
     for directory in [INPUT_DIR, OUTPUT_DIR, CONFIG_DIR]:
@@ -29,9 +30,10 @@ def main():
         "population_size": 1250,
         "elite_size": 125,
         "mutation_rate": 0.05,
-        "generations": 5,
+        "generations": 150,
         
         # Truck fleet configuration
+        # Don't touch it! Truck Weight fiend is not available. This configuration will release soon.
         "truck_weights": [1000, 1000, 1000, 1000, 1000, 1000, 2000, 2000, 2000, 2000],
         
         # Input file paths
@@ -129,6 +131,7 @@ def main():
             config["warehouse_location"],
             to_map,
             osm.colors,
+            output_path=config["output_map"]
         )
         
         # Create Excel schedule

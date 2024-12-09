@@ -452,8 +452,8 @@ def output_as_excel(truck_routes, order_data_w, time_matrix, desired_delivery_da
 
     return output
 
-def Excel_writer(truck_schedule):
-    with pd.ExcelWriter('truck_schedule_output.xlsx', engine='xlsxwriter') as writer:
+def Excel_writer(truck_schedule, output_path):
+    with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
         for day_schedule in truck_schedule:
             # Extract date, truck activities, and outsourcing activities
             date = day_schedule[0]

@@ -18,6 +18,8 @@ truck_num = len(Truck_weights)
 ex_data = func.read_csv_to_list(filepath_order)
 product_list = func.read_csv_to_list(filepath_product)
 new_order = func.product_to_weight(ex_data, product_list)
+# print(new_order)
+# exit()
 distance_m = func.create_distance_matrix(warehouse_location, new_order)
 time_m = func.create_time_matrix(warehouse_location, new_order)
 
@@ -418,35 +420,35 @@ def optimize_routes(
 # for _ in range(5):
 #     genetic_func.fitness_cache = {}
 #     for _ in range(5):
-start_time = time.time()
-best_solution = optimize_routes(
-    new_order, distance_m, time_m, Truck_weights, generations=150
-)
-best_out_sourcing_fee = func.calculate_outsourcing_fee(
-    best_solution, new_order, distance_m, desired_delivery_date
-)
-print("Best solution: ", best_solution)
-for date in desired_delivery_date:
-    print(date)
-    for key in best_solution[date].keys():
-        if key == "Outsourcing":
-            print(f"Outsourcing: {best_solution[date]['Outsourcing']}")
-        else:
-            print(f"{key}: Weight {best_solution[date][key]['capacity']}")
-            print(f"Order {best_solution[date][key]['order']}")
-            hour, minute = func.out_put_time_show(
-                best_solution[date][key]["order"], new_order, time_m
-            )
-            print(f"Time end: {hour}:{minute}")
-print("best out fee: ", best_out_sourcing_fee)
-print(f"Time taken {time.time()-start_time}")
+# start_time = time.time()
+# best_solution = optimize_routes(
+#     new_order, distance_m, time_m, Truck_weights, generations=30
+# )
+# best_out_sourcing_fee = func.calculate_outsourcing_fee(
+#     best_solution, new_order, distance_m, desired_delivery_date
+# )
+# print("Best solution: ", best_solution)
+# for date in desired_delivery_date:
+#     print(date)
+#     for key in best_solution[date].keys():
+#         if key == "Outsourcing":
+#             print(f"Outsourcing: {best_solution[date]['Outsourcing']}")
+#         else:
+#             print(f"{key}: Weight {best_solution[date][key]['capacity']}")
+#             print(f"Order {best_solution[date][key]['order']}")
+#             hour, minute = func.out_put_time_show(
+#                 best_solution[date][key]["order"], new_order, time_m
+#             )
+#             print(f"Time end: {hour}:{minute}")
+# print("best out fee: ", best_out_sourcing_fee)
+# print(f"Time taken {time.time()-start_time}")
 
-to_map = func.to_truck_routes(best_solution, new_order, desired_delivery_date)
-osm.create_map_tree(warehouse_location, to_map, osm.colors)
+# to_map = func.to_truck_routes(best_solution, new_order, desired_delivery_date)
+# osm.create_map_tree(warehouse_location, to_map, osm.colors)
 
-excel_input = func.output_as_excel(
-    best_solution, new_order, time_m, desired_delivery_date
-)
-func.Excel_writer(excel_input)
+# excel_input = func.output_as_excel(
+#     best_solution, new_order, time_m, desired_delivery_date
+# )
+# func.Excel_writer(excel_input)
 
-print(f"Time taken {time.time()-start_time}")
+# print(f"Time taken {time.time()-start_time}")

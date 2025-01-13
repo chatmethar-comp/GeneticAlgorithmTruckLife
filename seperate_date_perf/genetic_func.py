@@ -323,7 +323,7 @@ def selection(fitness_results, elite_size):
 
 
 def next_generation(
-    current_gen, elite_size, mutation_rate, order_data_w, distance_matrix, time_matrix
+    config, current_gen, elite_size, mutation_rate, order_data_w, distance_matrix, time_matrix
 ):
     ranked_solutions = rank_solutions(
         current_gen, order_data_w, distance_matrix, time_matrix
@@ -331,6 +331,8 @@ def next_generation(
     current_best_fitness = ranked_solutions[0][0]  # Best score in this generation
 
     print(f"Current gen best fitness score: {current_best_fitness}")
+    with open(config["fitness_log"], "a") as f:
+        f.write(f"Current gen best fitness score: {current_best_fitness}\n")
 
     # Selection and cloning elite individuals
     selection_results = selection(ranked_solutions, elite_size)
@@ -361,6 +363,7 @@ def next_generation(
 
 
 def genetic_algorithm(
+    config,
     pop_size,
     generations,
     elite_size,
@@ -375,6 +378,7 @@ def genetic_algorithm(
     for gen in range(generations):
         print(f"Gen {gen}")
         population = next_generation(
+            config,
             population,
             elite_size,
             mutation_rate,
@@ -390,6 +394,7 @@ def genetic_algorithm(
 
 
 def optimize_routes(
+    config,
     order_data_w,
     distance_matrix,
     time_matrix,
@@ -400,6 +405,7 @@ def optimize_routes(
     generations=50,
 ):
     best_solution = genetic_algorithm(
+        config,
         pop_size,
         generations,
         elite_size,

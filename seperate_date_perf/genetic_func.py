@@ -15,13 +15,13 @@ global desired_delivery_date
 desired_delivery_date = []
 global truck_num
 truck_num = len(Truck_weights)
-ex_data = func.read_csv_to_list(filepath_order)
-product_list = func.read_csv_to_list(filepath_product)
-new_order = func.product_to_weight(ex_data, product_list)
+# ex_data = func.read_csv_to_list(filepath_order)
+# product_list = func.read_csv_to_list(filepath_product)
+# new_order = func.product_to_weight(ex_data, product_list)
 # print(new_order)
 # exit()
-distance_m = func.create_distance_matrix(warehouse_location, new_order)
-time_m = func.create_time_matrix(warehouse_location, new_order)
+# distance_m = func.create_distance_matrix(warehouse_location, new_order)
+# time_m = func.create_time_matrix(warehouse_location, new_order)
 
 
 def gen_individual(order_data_w, truck_weights):

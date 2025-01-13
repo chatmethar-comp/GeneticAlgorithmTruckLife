@@ -43,6 +43,7 @@ def main():
         # Output file configuration
         "output_excel": os.path.join(OUTPUT_DIR, "route_schedule.xlsx"),
         "output_map": os.path.join(OUTPUT_DIR, "route_map.html"),
+        "fitness_log": os.path.join(OUTPUT_DIR, "best_fitness_log.txt"),
         
         # Time windows
         "working_hours": {
@@ -77,6 +78,7 @@ def main():
         start_time = time.time()
         
         best_solution = genetic_func.optimize_routes(
+            config=config,
             order_data_w=new_order,
             distance_matrix=distance_matrix,
             time_matrix=time_matrix,
@@ -120,6 +122,8 @@ def main():
 
         # Generate outputs
         print("\nGenerating outputs...")
+        with open(config["fitness_log"], "a") as f:
+            f.write(f"\nTotal Outsourcing Cost: {best_outsourcing_fee}\n")
         
         # Create route map
         to_map = func.to_truck_routes(

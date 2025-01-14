@@ -270,7 +270,7 @@ def calculate_fitness_score(individual, order_data_w, distance_matrix, time_matr
         individual, order_data_w, time_matrix, desired_delivery_date
     )
     fitness_score = out_source_fee + wait_time + outsource_score
-    return fitness_score
+    return fitness_score, out_source_fee, wait_time, outsource_score
 
 
 fitness_cache = {}
@@ -311,7 +311,7 @@ def rank_solutions(population, order_data_w, distance_matrix, time_matrix):
     ]
 
     # Sort population by fitness (lower fitness is better)
-    return sorted(fitness_results, key=lambda x: x[0])
+    return sorted(fitness_results, key=lambda x: x[0][0])
 
 
 def selection(fitness_results, elite_size):
@@ -330,9 +330,9 @@ def next_generation(
     )
     current_best_fitness = ranked_solutions[0][0]  # Best score in this generation
 
-    print(f"Current gen best fitness score: {current_best_fitness}")
+    print(f"Current gen best fitness score: {current_best_fitness[0]}, {current_best_fitness[1]}, {current_best_fitness[2]}, {current_best_fitness[3]}")
     with open(config["fitness_log"], "a") as f:
-        f.write(f"Current gen best fitness score: {current_best_fitness}\n")
+        f.write(f"{current_best_fitness[1]}, {current_best_fitness[2]}, {current_best_fitness[3]}, {current_best_fitness[0]}\n")
 
     # Selection and cloning elite individuals
     selection_results = selection(ranked_solutions, elite_size)

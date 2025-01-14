@@ -72,7 +72,8 @@ def main():
         print("Creating distance and time matrices...")
         distance_matrix = func.create_distance_matrix(config["warehouse_location"], new_order)
         time_matrix = func.create_time_matrix(config["warehouse_location"], new_order)
-
+        with open(config["fitness_log"], "a") as f:
+            f.write(f"best_outsourcing_fee, wait_time, outsource_score, fitness_score\n")
         # Run optimization
         print(f"Starting optimization with {config['generations']} generations...")
         start_time = time.time()
@@ -122,8 +123,6 @@ def main():
 
         # Generate outputs
         print("\nGenerating outputs...")
-        with open(config["fitness_log"], "a") as f:
-            f.write(f"\nTotal Outsourcing Cost: {best_outsourcing_fee}\n")
         
         # Create route map
         to_map = func.to_truck_routes(

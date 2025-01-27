@@ -131,24 +131,21 @@ def assign_to_truck(individual, order_data_w, time_matrix):
                 truck_info = individual_c[date][f"Truck{truck_to_assign}"]
                 truck_orders = truck_info["order"]
 
-                # Determine insertion point and capacity index
-                insertion_index = random.randint(0, len(truck_orders))
-
-                capacity_index = truck_info["order"][:insertion_index].count(0)
-
-                # Check weight capacity and perform insertion if conditions are met
-                if order_weight <= truck_info["capacity"][capacity_index]:
-                    if func.check_time_insert_item(
-                        outsourced_order,
-                        insertion_index,
-                        truck_orders,
-                        order_data_w,
-                        time_matrix,
-                    ):
-                        truck_orders.insert(insertion_index, outsourced_order)
-                        truck_info["capacity"][capacity_index] -= order_weight
-                        outsourcing_orders.remove(outsourced_order)
-                        break  # Exit after successful assignment
+                capable_indices = []
+                for insertion_index in range(len(truck_orders) + 1):  # Include the position after the last item
+                    capacity_index = truck_orders[:insertion_index].count(0)  # Get the capacity index for this insertion point
+                    if order_weight <= truck_info["capacity"][capacity_index]:
+                        if func.check_time_insert_item(outsourced_order, insertion_index, truck_orders, order_data_w, time_matrix):
+                            capable_indices.append(insertion_index)
+                
+                if capable_indices:
+                    # print(capable_indices)
+                    insertion_index = random.choice(capable_indices)
+                    capacity_index = truck_orders[:insertion_index].count(0)
+                    truck_orders.insert(insertion_index, outsourced_order)
+                    truck_info["capacity"][capacity_index] -= order_weight
+                    outsourcing_orders.remove(outsourced_order)
+                    break
     return individual_c
 
 

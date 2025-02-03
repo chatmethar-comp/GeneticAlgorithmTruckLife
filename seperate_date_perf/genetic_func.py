@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime
 import func
 import osm
 import random
@@ -326,10 +327,11 @@ def next_generation(
         current_gen, order_data_w, distance_matrix, time_matrix
     )
     current_best_fitness = ranked_solutions[0][0]  # Best score in this generation
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     print(f"Current gen best fitness score: {current_best_fitness[0]}, {current_best_fitness[1]}, {current_best_fitness[2]}, {current_best_fitness[3]}")
     with open(config["fitness_log"], "a") as f:
-        f.write(f"{current_best_fitness[1]}, {current_best_fitness[2]}, {current_best_fitness[3]}, {current_best_fitness[0]}\n")
+        f.write(f"{timestamp}, {current_best_fitness[1]}, {current_best_fitness[2]}, {current_best_fitness[3]}, {current_best_fitness[0]}\n")
 
     # Selection and cloning elite individuals
     selection_results = selection(ranked_solutions, elite_size)

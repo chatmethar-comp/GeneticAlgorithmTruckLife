@@ -72,14 +72,6 @@ def make_hashable(item):
             return tuple(make_hashable(subitem) for subitem in item)  # Recursively convert each subitem to a tuple
         return item
 
-def calculate_time(time_matrix,start_orderID,destination_orderID):
-    time = time_matrix[start_orderID][destination_orderID]
-    return time
-
-def calculate_distance(distance_matrix,start_orderID,destination_orderID):
-    distance = distance_matrix[start_orderID][destination_orderID]
-    return distance
-
 def correct_time(hour,minute):
     hour_c = hour
     minute_c = minute
@@ -121,7 +113,7 @@ def calculate_outsourcing_fee(individual, order_data_w, distance_matrix, desired
                 continue
 
             # Calculate distance and fee
-            dis = calculate_distance(distance_matrix, 0, order)
+            dis = distance_matrix[0, order]
             weight = order_data_w[order - 1][-1]
 
             # Use a dictionary for fee calculations based on weight and distance ranges
@@ -204,17 +196,22 @@ def calculate_wait_time_and_outsourcingscore(individual, order_data_w, time_matr
                 if time_cache_key in time_cache:
                     travel_time = time_cache[time_cache_key]
                 else:
-                    travel_time = calculate_time(time_matrix, start_place, order) * 60
+                    travel_time = time_matrix[start_place, order] * 60
                     time_cache[time_cache_key] = travel_time
 
                 # Update current time
                 hour_t, minute_t = correct_time(hour_t, minute_t + travel_time)
 
                 # Calculate wait time for the current order
-                hour_dt, minute_dt = delivered_time(order, order_data_w)
-                hour_w = hour_dt - hour_t
-                minute_w = minute_dt - minute_t
-                hour_w, minute_w = correct_time(hour_w, minute_w)
+                if order:
+                    hour_dt, minute_dt = delivered_time(order, order_data_w)
+                    hour_w = hour_dt - hour_t
+                    minute_w = minute_dt - minute_t
+                    hour_w, minute_w = correct_time(hour_w, minute_w)
+                    hour_t, minute_t = hour_dt, minute_dt
+                else:
+                    hour_w = 0
+                    minute_w = 0
 
                 # Add the wait time for this order
                 current_truck_wait_time += hour_w + (minute_w / 60)
@@ -228,7 +225,7 @@ def calculate_wait_time_and_outsourcingscore(individual, order_data_w, time_matr
 
         # Calculate outsourcing score for the current date
         outsourcing_len = len(individual[date]["Outsourcing"])
-        out_score += outsourcing_len ** 2
+        out_score += outsourcing_len ** 3
 
     return wait_time, out_score
 
@@ -280,7 +277,7 @@ def check_time_add_item(neworder, truck, order_data_w, time_matrix):
     for order in truck:
         if order == 0:
             # Calculate time returning to the warehouse
-            hour_t, minute_t = correct_time(hour_t, minute_t + calculate_time(time_matrix, start_place, 0) * 60)
+            hour_t, minute_t = correct_time(hour_t, minute_t + time_matrix[start_place, 0] * 60)
             start_place = 0  # Reset to warehouse
         else:
             # Calculate time for the next delivery
@@ -290,7 +287,7 @@ def check_time_add_item(neworder, truck, order_data_w, time_matrix):
     
     # Now, calculate the delivery time for the new order after the last order
     hour_dt, minute_dt = delivered_time(neworder, order_data_w)
-    hour_t, minute_t = correct_time(hour_t, minute_t + calculate_time(time_matrix, start_place, neworder) * 60)
+    hour_t, minute_t = correct_time(hour_t, minute_t + time_matrix[start_place, neworder] * 60)
     
     # Check if the new order's delivery time is before its deadline
     if hour_t < hour_dt or (hour_t == hour_dt and minute_t <= minute_dt):
@@ -306,7 +303,7 @@ def check_time_insert_item(neworder, insertion_index, truck, order_data_w, time_
     for order in truck[:insertion_index]:
         if order == 0:
             # Return to the warehouse and reset time to warehouse open time
-            hour_t, minute_t = correct_time(hour_t, minute_t + calculate_time(time_matrix, start_place, 0) * 60)
+            hour_t, minute_t = correct_time(hour_t, minute_t + time_matrix[start_place, 0] * 60)
             start_place = 0
         else:
             # Move to the next delivery time
@@ -317,7 +314,7 @@ def check_time_insert_item(neworder, insertion_index, truck, order_data_w, time_
     # Process the new order's delivery time
     if neworder == 0:
         # Calculate time to return to warehouse
-        hour_t, minute_t = correct_time(hour_t, minute_t + calculate_time(time_matrix, start_place, neworder) * 60)
+        hour_t, minute_t = correct_time(hour_t, minute_t + time_matrix[start_place, neworder] * 60)
         # Set latest allowable warehouse return time
         if insertion_index < len(truck):
             next_order_index = insertion_index
@@ -330,7 +327,7 @@ def check_time_insert_item(neworder, insertion_index, truck, order_data_w, time_
                 return False
             hour_dt, minute_dt = delivered_time(next_order, order_data_w)
             # Time to next order after warehouse return
-            hour_t, minute_t = correct_time(hour_t, minute_t + calculate_time(time_matrix, neworder, next_order) * 60)
+            hour_t, minute_t = correct_time(hour_t, minute_t + time_matrix[neworder, next_order] * 60)
             if hour_t > hour_dt or (hour_t == hour_dt and minute_t > minute_dt):
                 return False
         return True
@@ -339,7 +336,7 @@ def check_time_insert_item(neworder, insertion_index, truck, order_data_w, time_
         # Determine arrival time for new order
         hour_dt, minute_dt = delivered_time(neworder, order_data_w)
         # Calculate travel time to new order
-        hour_t, minute_t = correct_time(hour_t, minute_t + calculate_time(time_matrix, start_place, neworder) * 60)
+        hour_t, minute_t = correct_time(hour_t, minute_t + time_matrix[start_place, neworder] * 60)
 
         if hour_t < hour_dt or (hour_t == hour_dt and minute_t <= minute_dt):
             hour_t, minute_t = hour_dt, minute_dt  # Update to fit new order time
@@ -357,7 +354,7 @@ def check_time_insert_item(neworder, insertion_index, truck, order_data_w, time_
             except IndexError:
                 return True
             hour_dt, minute_dt = delivered_time(next_order, order_data_w)
-            hour_t, minute_t = correct_time(hour_t, minute_t + calculate_time(time_matrix, neworder, next_order) * 60)
+            hour_t, minute_t = correct_time(hour_t, minute_t + time_matrix[neworder, next_order] * 60)
 
             if hour_t > hour_dt or (hour_t == hour_dt and minute_t > minute_dt):
                 return False
@@ -399,7 +396,7 @@ def output_as_excel(truck_routes, order_data_w, time_matrix, desired_delivery_da
                                     return_time_str = f'{hour_t:02}:{minute_t:02}'  # Current time before returning to warehouse
                                     
                                     # Calculate time to travel back to the warehouse from last delivery location
-                                    return_to_warehouse_duration = int(calculate_time(time_matrix, start_place, 0) * 60)
+                                    return_to_warehouse_duration = int(time_matrix[start_place, 0] * 60)
                                     hour_t, minute_t = correct_time(hour_t, minute_t + return_to_warehouse_duration)
                                     arrival_time_str = f'{hour_t:02}:{minute_t:02}'
 
@@ -414,7 +411,7 @@ def output_as_excel(truck_routes, order_data_w, time_matrix, desired_delivery_da
                                 order_time_str = f'{hour_t:02}:{minute_t:02}'  # Current time string
                                 
                                 # Update time after delivery
-                                delivery_duration = int(calculate_time(time_matrix, start_place, order) * 60)
+                                delivery_duration = int(time_matrix[start_place, order] * 60)
                                 hour_t, minute_t = correct_time(hour_t, minute_t + delivery_duration)
                                 delivery_time_str = f'{hour_t:02}:{minute_t:02}'  # Delivery time string
 
@@ -437,7 +434,7 @@ def output_as_excel(truck_routes, order_data_w, time_matrix, desired_delivery_da
                         if delivered:
                             return_time_str = f'{hour_t:02}:{minute_t:02}'  # Time before heading back to warehouse
                             # Calculate time to travel back to warehouse
-                            arrival_at_warehouse_time = correct_time(hour_t, minute_t + int(calculate_time(time_matrix, last_order, 0) * 60))
+                            arrival_at_warehouse_time = correct_time(hour_t, minute_t + int(time_matrix[last_order, 0] * 60))
                             arrival_time_str = f'{arrival_at_warehouse_time[0]:02}:{arrival_at_warehouse_time[1]:02}'
                             truck_output.append(["Go back to warehouse", return_time_str, arrival_time_str])
 
@@ -507,7 +504,7 @@ def out_put_time_show(truck, order_data_w, time_matrix):
     for order in truck[:]:
         # Update the time based on the current order
         if order == 0:
-            hour_dt, minute_dt = correct_time(hour_t, minute_t + calculate_time(time_matrix, start_place, order) * 60)
+            hour_dt, minute_dt = correct_time(hour_t, minute_t + time_matrix[start_place, order] * 60)
         else:
             hour_dt, minute_dt = delivered_time(order, order_data_w)
         hour_t, minute_t = hour_dt, minute_dt

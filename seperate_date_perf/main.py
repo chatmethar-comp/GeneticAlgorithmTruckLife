@@ -50,10 +50,7 @@ def main():
             "start": "08:00",
             "end": "17:00"
         },
-        
-        # Cost parameters
-        "outsourcing_cost_per_km": 50,
-        "waiting_cost_per_hour": 100
+    
     }
 
     # Save configuration
@@ -100,26 +97,24 @@ def main():
             distance_matrix, 
             genetic_func.desired_delivery_date
         )
-        
+        display_solution  = func.format_solution(
+            best_solution,  
+            genetic_func.desired_delivery_date
+        )
+
         # Print solution details
         print("\nSolution Summary:")
         print(f"Total Outsourcing Cost: {best_outsourcing_fee}")
         
         for date in genetic_func.desired_delivery_date:
             print(f"\nDate: {date}")
-            for key, value in best_solution[date].items():
-                if key == "Outsourcing":
-                    print(f"Outsourced Orders: {value}")
-                else:
-                    print(f"\n{key}:")
-                    print(f"Capacity: {value['capacity']}")
-                    print(f"Route: {value['order']}")
-                    hour, minute = func.out_put_time_show(
-                        value['order'],
-                        new_order,
-                        time_matrix
-                    )
-                    print(f"Route Completion Time: {hour:02f}:{minute:02f}")
+
+            for truck, trips in display_solution[date]["Trucks"].items():
+                print(f"\n{truck}:")
+                for i, trip in enumerate(trips, 1):
+                    print(f"  Trip {i}: {trip}")
+
+            print(f"\nOutsourced Orders: {display_solution[date]['Outsourcing']}")
 
         # Generate outputs
         print("\nGenerating outputs...")

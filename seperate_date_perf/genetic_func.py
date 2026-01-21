@@ -4,7 +4,7 @@ import func
 import osm
 import random
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor,ProcessPoolExecutor
 
 warehouse_location = [13.7438, 100.5626]
 Truck_weights = [1000, 1000, 1000, 1000, 1000, 1000, 2000, 2000, 2000, 2000]
@@ -153,171 +153,252 @@ def assign_to_truck(individual, order_data_w, time_matrix):
 def mutate(individual, order_data_w, mutation_rate, time_matrix):
     global desired_delivery_date, truck_num
     mutated_solution = func.fast_deepcopy(individual)
-    multiple_trucks = truck_num > 1
 
     for date in desired_delivery_date:
         if random.random() < mutation_rate:
-            # Move orders from Outsourcing to a random date's Outsourcing
+
+            # (A) Randomly move outsourcing orders across dates
             outsourcing_orders = mutated_solution[date]["Outsourcing"]
-            for order in outsourcing_orders[:]:  # Copy to avoid mutation during iteration
+            for order in outsourcing_orders[:]:
                 if order:
                     random_date = random.choice(order_delivery_date_cache[order])
                     mutated_solution[random_date]["Outsourcing"].append(order)
                     outsourcing_orders.remove(order)
 
-            # Inter-truck order reassignment if there are multiple trucks
-            if multiple_trucks and random.random() <= 0.6:
-                source_truck_num = random.randint(1, truck_num)
-                source_truck = mutated_solution[date][f"Truck{source_truck_num}"]
-
-                if source_truck["order"]:  # Ensure the source truck has orders
-                    item_from_truck = random.choice(source_truck["order"])
-                    if item_from_truck:
-                        target_truck_num = random.choice(
-                            [
-                                i
-                                for i in range(1, truck_num + 1)
-                                if i != source_truck_num
-                            ]
-                        )
-                        target_truck = mutated_solution[date][
-                            f"Truck{target_truck_num}"
-                        ]
-
-                        order_weight = order_data_w[item_from_truck - 1][-1]
-                        if order_weight <= target_truck["capacity"][-1]:
-                            if func.check_time_add_item(
-                                item_from_truck,
-                                target_truck["order"],
-                                order_data_w,
-                                time_matrix,
-                            ):
-                                target_truck["order"].append(item_from_truck)
-                                target_truck["capacity"][-1] -= order_weight
-                                item_index = source_truck["order"].index(
-                                    item_from_truck
-                                )
-                                capacity_index = source_truck["order"][
-                                    :item_index
-                                ].count(0)
-                                source_truck["order"].remove(item_from_truck)
-                                source_truck["capacity"][capacity_index] += order_weight
-                                if (
-                                    len(source_truck["capacity"]) > 1
-                                    and source_truck["capacity"][capacity_index]
-                                    == source_truck["weight"]
-                                    and source_truck["order"][item_index - 1] == 0
-                                ):
-                                    del source_truck["capacity"][capacity_index]
-                                    del source_truck["order"][item_index - 1]
-
-            # Randomly move a truck's item to Outsourcing
+            # (B) Randomly move ONE truck order to outsourcing
             random_truck_num = random.randint(1, truck_num)
             random_truck = mutated_solution[date][f"Truck{random_truck_num}"]
-            valid_items = [i for i, x in enumerate(random_truck["order"]) if x != 0]
 
-            if valid_items:  # Only proceed if there are non-zero items to choose from
+            valid_items = [i for i, x in enumerate(random_truck["order"]) if x != 0]
+            if valid_items:
                 random_item_index = random.choice(valid_items)
                 item_to_move = random_truck["order"][random_item_index]
 
                 capacity_index = random_truck["order"][:random_item_index].count(0)
-                # Move order to Outsourcing and adjust capacity
                 mutated_solution[date]["Outsourcing"].append(item_to_move)
-                random_truck["capacity"][capacity_index] += order_data_w[
-                    item_to_move - 1
-                ][-1]
+
+                random_truck["capacity"][capacity_index] += order_data_w[item_to_move - 1][-1]
                 random_truck["order"].remove(item_to_move)
 
-        # Randomly add a (0) to trucks
+        # (C) Random route segmentation (0 insertion)
         for truck_key, truck_data in mutated_solution[date].items():
+            if truck_key == "Outsourcing":
+                continue
+
             if (
-                truck_key != "Outsourcing"
+                truck_data["order"]
+                and truck_data["order"][-1]
+                and random.random() < mutation_rate
             ):
-                insertion_index = random.randint(1,len(truck_data["order"])+1)
-                if(
-                    truck_data["order"]
-                    and truck_data["order"][-1]
-                    and random.random() < mutation_rate
+                insertion_index = random.randint(1, len(truck_data["order"]))
+                if func.check_time_insert_item(
+                    0,
+                    insertion_index,
+                    truck_data["order"],
+                    order_data_w,
+                    time_matrix,
                 ):
-                    if func.check_time_insert_item(0,insertion_index,truck_data["order"],order_data_w,time_matrix):
-                        truck_data["order"].insert(insertion_index, 0)
-                        capacity_index = truck_data["order"][:insertion_index].count(0)
-                        truck_data["capacity"].insert(capacity_index+1, truck_data["weight"])
-                        for order in truck_data["order"][insertion_index+1:]:
-                            if order:
-                                truck_data["capacity"][capacity_index+1]-=order_data_w[order-1][-1]
-                                truck_data["capacity"][capacity_index]+=order_data_w[order-1][-1]
-                            else:
-                                break
-                elif(
-                    truck_data["order"]
-                    and truck_data["order"][-1]
-                    and random.random() < (2*mutation_rate)
-                    ):
-                    truck_data["order"].append(0)
-                    truck_data["capacity"].append(truck_data["weight"])
+                    truck_data["order"].insert(insertion_index, 0)
+                    capacity_index = truck_data["order"][:insertion_index].count(0)
+                    truck_data["capacity"].insert(capacity_index + 1, truck_data["weight"])
 
     return mutated_solution
 
+def two_opt_star(route1, route2):
+    """
+    Perform a 2-opt* exchange between two routes.
+    Route format: [0, a, b, c, 0, d, e, 0] or similar
+    """
 
-def calculate_fitness_score(individual, order_data_w, distance_matrix, time_matrix):
-    out_source_fee = func.calculate_outsourcing_fee(
-        individual, order_data_w, distance_matrix, desired_delivery_date
+    # Remove trailing depot markers for safety
+    r1 = route1[:]
+    r2 = route2[:]
+
+    # Valid cut positions (cannot cut at depot)
+    r1_candidates = [i for i in range(1, len(r1) - 1) if r1[i] != 0]
+    r2_candidates = [i for i in range(1, len(r2) - 1) if r2[i] != 0]
+
+    if not r1_candidates or not r2_candidates:
+        return route1, route2  # No change possible
+
+    cut1 = random.choice(r1_candidates)
+    cut2 = random.choice(r2_candidates)
+
+    # Split routes
+    new_r1 = r1[:cut1] + r2[cut2:]
+    new_r2 = r2[:cut2] + r1[cut1:]
+
+    return new_r1, new_r2
+
+def local_search(individual, order_data_w, time_matrix, ls_prob=0.3):
+    """
+    Apply local search (2-opt / 2-opt*) to an individual with probability ls_prob
+    """
+
+    if random.random() > ls_prob:
+        return individual  # Skip LS
+
+    improved = copy.deepcopy(individual)
+
+    for date, day_plan in improved.items():
+        trucks = [k for k in day_plan if k != "Outsourcing"]
+
+        if len(trucks) < 2:
+            continue
+
+        # Pick two different trucks
+        t1, t2 = random.sample(trucks, 2)
+        truck1 = day_plan[t1]
+        truck2 = day_plan[t2]
+
+        r1, r2 = two_opt_star(truck1["order"], truck2["order"])
+
+        # Feasibility checks (you already have these)
+        if (
+            func.check_time_route(r1, order_data_w, time_matrix)
+            and func.check_time_route(r2, order_data_w, time_matrix)
+            and func.check_capacity(r1, order_data_w, truck1["weight"])
+            and func.check_capacity(r2, order_data_w, truck2["weight"])
+        ):
+            truck1["order"] = r1
+            truck1["capacity"] = func.rebuild_capacity(
+                r1, order_data_w, truck1["weight"]
+            )
+
+            truck2["order"] = r2
+            truck2["capacity"] = func.rebuild_capacity(
+                r2, order_data_w, truck2["weight"]
+            )
+    return improved
+
+
+def apply_local_search(parent, offspring):
+    parent_fit, _ = calculate_fitness_moga(parent)
+    offspring_fit, _ = calculate_fitness_moga(offspring)
+
+    if dominates(offspring_fit, parent_fit):
+        return offspring
+    return parent
+
+
+
+
+def calculate_fitness_moga(individual, order_data_w, distance_matrix, time_matrix):
+    # z1: Travel Distance
+    z1_distance = func.calculate_total_distance(
+        individual, distance_matrix
     )
-    wait_time, outsource_score = func.calculate_wait_time_and_outsourcingscore(
+
+    # z2: Truck Time Efficiency (Waiting Time)
+    z2_wait_time, num_outsourced = func.calculate_wait_time_and_outsourcingscore(
         individual, order_data_w, time_matrix, desired_delivery_date
     )
-    fitness_score = out_source_fee + wait_time + outsource_score
-    return fitness_score, out_source_fee, wait_time, outsource_score
 
-
-fitness_cache = {}
-
-
-def evaluate_fitness(individual, order_data_w, distance_matrix, time_matrix):
-    # Helper function to convert individual into a hashable tuple
-    # def make_hashable(item):
-    #     if isinstance(item, (list, tuple)):
-    #         return tuple(make_hashable(subitem) for subitem in item)  # Recursively convert each subitem to a tuple
-    #     return item  # Return the item itself if it's not a list or tuple (e.g., int)
-
-    # # Convert individual to a hashable tuple
-    # individual_tuple = make_hashable(individual)
-
-    # # Check if the individual's fitness is already cached
-    # if individual_tuple in fitness_cache:
-    #     return fitness_cache[individual_tuple]
-
-    # Compute the fitness using the existing function
-    fitness_value = calculate_fitness_score(
-        individual, order_data_w, distance_matrix, time_matrix
+    # z3: Economic Cost
+    outsourcing_fee = func.calculate_outsourcing_fee(
+        individual, order_data_w, distance_matrix, desired_delivery_date
     )
+    z3_cost = outsourcing_fee + (num_outsourced ** 3)
 
-    # Cache the computed fitness
-    # fitness_cache[individual_tuple] = fitness_value
+    # MOGA fitness vector
+    fitness = (z1_distance, z2_wait_time, z3_cost)
 
-    return fitness_value
+    return fitness, individual
 
-
+from functools import partial
 def rank_solutions(population, order_data_w, distance_matrix, time_matrix):
-    fitness_results = [
-        (
-            evaluate_fitness(individual, order_data_w, distance_matrix, time_matrix),
-            individual,
-        )
-        for individual in population
-    ]
+    partial_fitness = partial(calculate_fitness_moga,
+                          order_data_w=order_data_w,
+                          distance_matrix=distance_matrix,
+                          time_matrix=time_matrix)
+    with ThreadPoolExecutor() as executor:
+        fitness_results = list(executor.map(partial_fitness, population))
 
-    # Sort population by fitness (lower fitness is better)
+    # fitness_results is already [(fitness_tuple, individual), ...]
     return sorted(fitness_results, key=lambda x: x[0][0])
 
+def dominates(f1, f2):
+    return all(a <= b for a, b in zip(f1, f2)) and any(a < b for a, b in zip(f1, f2))
 
-def selection(fitness_results, elite_size):
-    best_individuals = [fitness_results[i][1] for i in range(elite_size - 50)]
-    for _ in range(50):
-        a = random.choice(fitness_results)
-        best_individuals.append(a[1])
-    return best_individuals
+def fast_non_dominated_sort(fitness_results):
+    fronts = [[]]
+    domination_count = {}
+    dominated_solutions = {}
+
+    for i, (fit_i, ind_i) in enumerate(fitness_results):
+        domination_count[i] = 0
+        dominated_solutions[i] = []
+
+        for j, (fit_j, _) in enumerate(fitness_results):
+            if i == j:
+                continue
+            if dominates(fit_i, fit_j):
+                dominated_solutions[i].append(j)
+            elif dominates(fit_j, fit_i):
+                domination_count[i] += 1
+
+        if domination_count[i] == 0:
+            fronts[0].append(i)
+
+    current_front = 0
+    while fronts[current_front]:
+        next_front = []
+        for i in fronts[current_front]:
+            for j in dominated_solutions[i]:
+                domination_count[j] -= 1
+                if domination_count[j] == 0:
+                    next_front.append(j)
+        current_front += 1
+        fronts.append(next_front)
+
+    return fronts[:-1]
+
+def crowding_distance(front, fitness_results):
+    distance = {i: 0 for i in front}
+    num_objectives = len(fitness_results[0][0])
+
+    for m in range(num_objectives):
+        front.sort(key=lambda i: fitness_results[i][0][m])
+        distance[front[0]] = distance[front[-1]] = float("inf")
+
+        min_val = fitness_results[front[0]][0][m]
+        max_val = fitness_results[front[-1]][0][m]
+        if max_val == min_val:
+            continue
+
+        for k in range(1, len(front) - 1):
+            prev_val = fitness_results[front[k - 1]][0][m]
+            next_val = fitness_results[front[k + 1]][0][m]
+            distance[front[k]] += (next_val - prev_val) / (max_val - min_val)
+
+    return distance
+
+def selection_nsga2(fitness_results, population_size):
+    fronts = fast_non_dominated_sort(fitness_results)
+    selected = []
+
+    for front in fronts:
+        if len(selected) + len(front) <= population_size:
+            selected.extend(front)
+        else:
+            distances = crowding_distance(front, fitness_results)
+            sorted_front = sorted(front, key=lambda i: distances[i], reverse=True)
+            selected.extend(sorted_front[:population_size - len(selected)])
+            break
+
+    return [fitness_results[i][1] for i in selected]
+
+def get_pareto_front(fitness_results):
+    pareto = []
+    for i, (fit_i, ind_i) in enumerate(fitness_results):
+        dominated = False
+        for j, (fit_j, _) in enumerate(fitness_results):
+            if i != j and dominates(fit_j, fit_i):
+                dominated = True
+                break
+        if not dominated:
+            pareto.append((fit_i, ind_i))
+    return pareto
 
 
 def next_generation(
@@ -326,39 +407,36 @@ def next_generation(
     ranked_solutions = rank_solutions(
         current_gen, order_data_w, distance_matrix, time_matrix
     )
-    current_best_fitness = ranked_solutions[0][0]  # Best score in this generation
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    print(f"Current gen best fitness score: {current_best_fitness[0]}, {current_best_fitness[1]}, {current_best_fitness[2]}, {current_best_fitness[3]}")
-    with open(config["fitness_log"], "a") as f:
-        f.write(f"{timestamp}, {current_best_fitness[1]}, {current_best_fitness[2]}, {current_best_fitness[3]}, {current_best_fitness[0]}\n")
+    current_best_fitness = ranked_solutions[0][0]
+    print(f"Current gen best fitness score: {current_best_fitness}")
 
-    # Selection and cloning elite individuals
-    selection_results = selection(ranked_solutions, elite_size)
+    # NSGA-II selection
+    selection_results = selection_nsga2(ranked_solutions, elite_size)
+
+    # Keep elite copies
     children = copy.deepcopy(selection_results)
 
-    # Parallel mutation for each parent in the selection
-    def mutate_individual(individual):
-        # Perform mutation on a deep copy of the individual to avoid shared state issues
-        return mutate(
+    def mutate_and_ls(individual):
+        mutated = mutate(
             copy.deepcopy(individual), order_data_w, mutation_rate, time_matrix
         )
+        return local_search(mutated, order_data_w, time_matrix)
 
-    # Use ThreadPoolExecutor to parallelize mutation
+    # Parallel mutation + local search
     with ThreadPoolExecutor() as executor:
-        # Apply mutation to selected individuals
-        mutated_parents = list(executor.map(mutate_individual, selection_results))
+        improved_parents = list(executor.map(mutate_and_ls, selection_results))
 
-    # Add mutated individuals as children, along with original elite copies
-    children.extend(mutated_parents)
+    children.extend(improved_parents)
 
-    # If more children are needed, perform additional crossovers
+    # Crossover if population is still short
     while len(children) < len(current_gen):
-        parent1, parent2 = random.sample(mutated_parents, 2)
+        parent1, parent2 = random.sample(improved_parents, 2)
         child = crossover(parent1, parent2, order_data_w)
         children.append(assign_to_truck(child, order_data_w, time_matrix))
 
     return children
+
 
 
 def genetic_algorithm(
@@ -385,7 +463,6 @@ def genetic_algorithm(
             distance_matrix,
             time_matrix,
         )
-
     best_solution = rank_solutions(
         population, order_data_w, distance_matrix, time_matrix
     )[0][1]

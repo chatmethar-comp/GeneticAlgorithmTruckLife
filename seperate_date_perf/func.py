@@ -49,7 +49,6 @@ def fast_deepcopy(data):
     for date, trucks in data.items():
         copied_trucks = {}
         
-        # Handle outsourcing list separately
         outsourcing_list = trucks.get("Outsourcing", [])
         
         for truck, info in trucks.items():
@@ -127,40 +126,169 @@ def calculate_outsourcing_fee(individual, order_data_w, distance_matrix, desired
 
     return outsorce_fee
 
+def format_solution(solution, desired_delivery_date):
+    """
+    Format solution into a clean, readable structure.
+    Safe for LS-modified solutions.
+    """
+
+    formatted = {}
+
+    for date in desired_delivery_date:
+        if date not in solution:
+            continue
+
+        day_plan = solution[date]
+        formatted[date] = {
+            "Trucks": {},
+            "Outsourcing": []
+        }
+
+        for key, value in day_plan.items():
+            # Handle outsourcing
+            if key == "Outsourcing":
+                formatted[date]["Outsourcing"] = list(value)
+                continue
+
+            # Safety checks
+            if not isinstance(value, dict):
+                continue
+            if "order" not in value:
+                continue
+
+            orders = value["order"]
+
+            if not orders:
+                formatted[date]["Trucks"][key] = []
+                continue
+
+            # Remove trailing 0 if exists
+            if orders[-1] == 0:
+                orders = orders[:-1]
+
+            # Split into trips
+            trips = []
+            current_trip = []
+
+            for order in orders:
+                if order == 0:
+                    if current_trip:
+                        trips.append(current_trip)
+                        current_trip = []
+                else:
+                    current_trip.append(order)
+
+            if current_trip:
+                trips.append(current_trip)
+
+            formatted[date]["Trucks"][key] = trips
+
+    return formatted
+
+def format_solution_display(raw_solution, desired_delivery_date):
+    """
+    Create a DISPLAY-ONLY version of the solution.
+    This function does NOT modify the raw solution.
+
+    Output structure:
+    display_solution[date] = {
+        "Trucks": {
+            "Truck1": [[1, 3, 5], [2, 4]],
+            "Truck2": [[6, 7]]
+        },
+        "Outsourcing": [8, 9]
+    }
+    """
+
+    display_solution = {}
+
+    for date in desired_delivery_date:
+        display_solution[date] = {
+            "Trucks": {},
+            "Outsourcing": []
+        }
+
+        for key, value in raw_solution[date].items():
+
+            # ------------------------
+            # Outsourcing
+            # ------------------------
+            if key == "Outsourcing":
+                display_solution[date]["Outsourcing"] = value.copy()
+                continue
+
+            # ------------------------
+            # Truck routes
+            # ------------------------
+            route = value["order"]
+
+            trips = []
+            current_trip = []
+
+            for node in route:
+                if node == 0:
+                    if current_trip:
+                        trips.append(current_trip)
+                        current_trip = []
+                else:
+                    current_trip.append(node)
+
+            if current_trip:
+                trips.append(current_trip)
+
+            display_solution[date]["Trucks"][key] = trips
+
+    return display_solution
+
+
+
+def calculate_total_distance(individual, distance_matrix):
+    total_distance = 0
+    for date in individual:
+        for truck in individual[date]:
+            if truck != "Outsourcing":
+                orders = individual[date][truck]["order"]
+                start_place = 0  # Warehouse index
+                for order in orders:
+                    total_distance += distance_matrix[start_place, order]
+                    start_place = order
+                # Return to warehouse
+                total_distance += distance_matrix[start_place, 0]
+            elif truck == "Outsourcing":
+                orders = individual[date][truck]
+                for order in orders:
+                    total_distance += distance_matrix[0, order] * 2  # To and from warehouse
+    return total_distance
+
 def calculate_fee_by_weight_and_distance(weight, dis):
-    if weight < 500:
-        if dis < 10:
-            return 1000
-        elif dis < 20:
-            return 1100
-        elif dis < 30:
-            return 1200
-        elif dis < 40:
-            return 1300
-        else:
-            return 1400
-    elif weight < 1000:
-        if dis < 10:
-            return 1200
-        elif dis < 20:
-            return 1400
-        elif dis < 30:
-            return 1600
-        elif dis < 40:
-            return 1800
-        else:
-            return 2000
-    elif weight < 1500:
-        if dis < 10:
-            return 1400
-        elif dis < 20:
-            return 1700
-        elif dis < 30:
-            return 2000
-        elif dis < 40:
-            return 2300
-        else:
-            return 2600
+    # Fee table: rows = weight ranges, columns = distance ranges
+    fee_table = [
+        [1000, 1100, 1200, 1300, 1400],  # weight < 500
+        [1200, 1400, 1600, 1800, 2000],  # weight < 1000
+        [1400, 1700, 2000, 2300, 2600],  # weight < 1500
+    ]
+
+    weight_limits = [500, 1000, 1500]
+    dist_limits   = [10, 20, 30, 40]
+
+    # Find weight index
+    for wi, limit in enumerate(weight_limits):
+        if weight < limit:
+            weight_idx = wi
+            break
+    else:
+        # If weight >= last limit, pick last row
+        weight_idx = len(weight_limits) - 1
+
+    # Find distance index
+    for di, limit in enumerate(dist_limits):
+        if dis < limit:
+            dist_idx = di
+            break
+    else:
+        dist_idx = len(dist_limits)
+
+    return fee_table[weight_idx][dist_idx]
 
 time_cache = {}
 wait_time_cache = {}
@@ -360,6 +488,79 @@ def check_time_insert_item(neworder, insertion_index, truck, order_data_w, time_
                 return False
 
         return True  # New order can be inserted without time conflict
+    
+def check_time_route(truck, order_data_w, time_matrix):
+    hour_t, minute_t = 7, 0  # Truck start time
+    start_place = 0  # Warehouse
+
+    for i, order in enumerate(truck):
+        if order == 0:
+            # Return to warehouse
+            hour_t, minute_t = correct_time(
+                hour_t, minute_t + time_matrix[start_place, 0] * 60
+            )
+            start_place = 0
+            continue
+
+        # Travel to order
+        hour_t, minute_t = correct_time(
+            hour_t, minute_t + time_matrix[start_place, order] * 60
+        )
+
+        # Order delivery deadline
+        hour_dt, minute_dt = delivered_time(order, order_data_w)
+
+        # Must arrive on or before delivery time
+        if hour_t > hour_dt or (hour_t == hour_dt and minute_t > minute_dt):
+            return False
+
+        # Wait until delivery time if early
+        hour_t, minute_t = hour_dt, minute_dt
+        start_place = order
+
+    return True
+
+def check_capacity(route, order_data_w, truck_capacity):
+    """
+    Check if a route satisfies truck capacity constraints.
+    Capacity resets after each 0 (warehouse return).
+    """
+
+    current_load = 0
+
+    for order in route:
+        if order == 0:
+            # New trip starts → reset load
+            current_load = 0
+            continue
+
+        order_weight = order_data_w[order - 1][-1]
+        current_load += order_weight
+
+        if current_load > truck_capacity:
+            return False
+
+    return True
+
+def rebuild_capacity(order, order_data_w, truck_capacity):
+    """
+    Rebuild capacity list based on order list.
+    Capacity resets after each 0.
+    """
+
+    capacity = []
+    remaining = truck_capacity
+
+    for item in order:
+        if item == 0:
+            capacity.append(remaining)
+            remaining = truck_capacity
+        else:
+            remaining -= order_data_w[item - 1][-1]
+
+    capacity.append(remaining)
+    return capacity
+
 
 def output_as_excel(truck_routes, order_data_w, time_matrix, desired_delivery_dates):
     output = []

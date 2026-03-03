@@ -1,3 +1,0 @@
-OrderID,ReceptionDate,Lat,Lon,DesiredDeliveryDate(Start),DesiredDeliveryDate(End),Delivery Time,Product
-1,2024/10/01,13.7563,100.5018,2024/10/01,2024/10/01,10:37,1
-2,2024/10/01,13.7276,100.5250,2024/10/01,2024/10/01,12:15,1

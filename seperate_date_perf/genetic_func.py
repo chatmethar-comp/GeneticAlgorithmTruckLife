@@ -7,8 +7,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor,ProcessPoolExecutor
 
 warehouse_location = [13.7438, 100.5626]
-Truck_weights = [1000, 1000, 1000, 1000, 1000, 1000, 2000, 2000, 2000, 2000]
-# Truck_weights = [1900, 1900, 1900, 1100]
+# Truck_weights = [1000, 1000, 1000, 1000, 1000, 1000, 2000, 2000, 2000, 2000]
+Truck_weights = [500, 500, 1000, 1000, 2000]
 filepath_order = "order.csv"
 filepath_product = "product.csv"
 order_delivery_date_cache = {}
@@ -115,8 +115,7 @@ def crossover(individual1, individual2, order_data_w):
 def assign_to_truck(individual, order_data_w, time_matrix):
     global desired_delivery_date, truck_num
     individual_c = func.fast_deepcopy(individual)
-
-    for _ in range(int(truck_num / 2)):  # Attempt up to four reassignments
+    for _ in range(int(truck_num+1)):  # Attempt up to four reassignments
         for date in desired_delivery_date:
             # Get random outsourced order, skip if none available
             outsourcing_orders = individual_c[date]["Outsourcing"]
@@ -131,7 +130,6 @@ def assign_to_truck(individual, order_data_w, time_matrix):
                 truck_to_assign = random.randint(1, truck_num)
                 truck_info = individual_c[date][f"Truck{truck_to_assign}"]
                 truck_orders = truck_info["order"]
-
                 capable_indices = []
                 for insertion_index in range(len(truck_orders) + 1):  # Include the position after the last item
                     capacity_index = truck_orders[:insertion_index].count(0)  # Get the capacity index for this insertion point
@@ -234,7 +232,6 @@ def local_search(individual, order_data_w, time_matrix, ls_prob=0.3):
     """
     Apply local search (2-opt / 2-opt*) to an individual with probability ls_prob
     """
-
     if random.random() > ls_prob:
         return individual  # Skip LS
 
@@ -270,17 +267,6 @@ def local_search(individual, order_data_w, time_matrix, ls_prob=0.3):
                 r2, order_data_w, truck2["weight"]
             )
     return improved
-
-
-def apply_local_search(parent, offspring):
-    parent_fit, _ = calculate_fitness_moga(parent)
-    offspring_fit, _ = calculate_fitness_moga(offspring)
-
-    if dominates(offspring_fit, parent_fit):
-        return offspring
-    return parent
-
-
 
 
 def calculate_fitness_moga(individual, order_data_w, distance_matrix, time_matrix):
@@ -434,7 +420,6 @@ def next_generation(
         parent1, parent2 = random.sample(improved_parents, 2)
         child = crossover(parent1, parent2, order_data_w)
         children.append(assign_to_truck(child, order_data_w, time_matrix))
-
     return children
 
 
@@ -454,6 +439,17 @@ def genetic_algorithm(
 
     for gen in range(generations):
         print(f"Gen {gen}")
+        # === at the end of each generation, AFTER you have population ===
+        log_generation_fitness(
+            gen=gen,
+            population=population,        # current generation’s population
+            config=config,
+            order_data_w=order_data_w,
+            distance_matrix=distance_matrix,
+            time_matrix=time_matrix,
+            desired_delivery_date=desired_delivery_date  # or genetic_func.desired_delivery_date
+        )
+
         population = next_generation(
             config,
             population,
@@ -463,11 +459,12 @@ def genetic_algorithm(
             distance_matrix,
             time_matrix,
         )
-    best_solution = rank_solutions(
-        population, order_data_w, distance_matrix, time_matrix
-    )[0][1]
-    return best_solution
 
+    ranked = rank_solutions(population, order_data_w, distance_matrix, time_matrix)
+    best_solution = ranked[0][1]
+
+    # ⬇️ return best_solution AND final population
+    return best_solution, population
 
 def optimize_routes(
     config,
@@ -480,7 +477,9 @@ def optimize_routes(
     mutation_rate=0.05,
     generations=50,
 ):
-    best_solution = genetic_algorithm(
+    global truck_num
+    truck_num = len(Truck_weights)
+    best_solution, final_population = genetic_algorithm(
         config,
         pop_size,
         generations,
@@ -491,9 +490,79 @@ def optimize_routes(
         time_matrix,
         truck_weights,
     )
-    return best_solution
+    # pass both out
+    return best_solution, final_population
 
+def log_generation_fitness(gen,
+                           population,
+                           config,
+                           order_data_w,
+                           distance_matrix,
+                           time_matrix,
+                           desired_delivery_date):
+    """
+    Log the best fitness of the current generation to fitness_log.
 
+    Parameters
+    ----------
+    gen : int
+        Current generation index (0-based).
+    population : iterable
+        List (or other iterable) of solutions (same type as in final_population).
+    config : dict
+        The config dict passed from main.py. Must contain 'fitness_log'.
+    order_data_w : list
+        Order list with weights (your `new_order`).
+    distance_matrix : 2D list/array
+        Distance matrix used by the GA.
+    time_matrix : 2D list/array
+        Time matrix used by the GA.
+    desired_delivery_date : list
+        Your `genetic_func.desired_delivery_date`.
+    """
+
+    log_path = config["fitness_log"]
+
+    if not population:
+        # nothing to log
+        return
+
+    best_sol = None
+    best_z1 = None
+    best_z2 = None
+    best_z3 = None
+    best_score = None
+
+    for sol in population:
+        # === compute objectives for this solution ===
+        z1 = func.calculate_total_distance(sol, distance_matrix)
+        z2, _ = func.calculate_wait_time_and_outsourcingscore(
+            sol,
+            order_data_w,
+            time_matrix,
+            desired_delivery_date
+        )
+        z3 = func.calculate_outsourcing_fee(
+            sol,
+            order_data_w,
+            distance_matrix,
+            desired_delivery_date
+        )
+
+        # === scoring rule for "best" of this generation ===
+        # Here we minimise the sum z1 + z2 + z3.
+        score = z1 + z2 + z3
+
+        if (best_score is None) or (score < best_score):
+            best_score = score
+            best_z1 = z1
+            best_z2 = z2
+            best_z3 = z3
+            best_sol = sol
+
+    # Append best of this generation to the log file
+    with open(log_path, "a") as f:
+        f.write(f"{gen},{best_z1},{best_z2},{best_z3}\n")
 # print(new_order)
 # best_fee_list = []
 # sumtime=0
@@ -534,3 +603,4 @@ def optimize_routes(
 # func.Excel_writer(excel_input)
 
 # print(f"Time taken {time.time()-start_time}")
+

@@ -32,7 +32,7 @@ def get_osrm_distance_matrix(warehouse_location, order_data_w, mode="driving"):
     # Convert coordinates to a format required by OSRM
     coord_string = ";".join([f"{lon},{lat}" for lat, lon in coordinates])
     # Define the OSRM Table service URL
-    url = f"https://fbd3-161-246-150-191.ngrok-free.app/table/v1/{mode}/{coord_string}?annotations=distance"
+    url = f"0.0.0.0:5000/table/v1/{mode}/{coord_string}?annotations=distance"
     # Send the request to OSRM API
     response = requests.get(url)
     # Check if the response is successful
@@ -60,7 +60,7 @@ def get_osrm_travel_time_matrix(warehouse_location, order_data_w, mode="driving"
     # Convert coordinates to a format required by OSRM
     coord_string = ";".join([f"{lon},{lat}" for lat, lon in coordinates])
     # Define the OSRM Table service URL with annotations=duration for travel time
-    url = f"https://fbd3-161-246-150-191.ngrok-free.app/table/v1/{mode}/{coord_string}?annotations=duration"
+    url = f"0.0.0.0:5000/table/v1/{mode}/{coord_string}?annotations=duration"
     # Send the request to OSRM API
     response = requests.get(url)
     # Check if the response is successful

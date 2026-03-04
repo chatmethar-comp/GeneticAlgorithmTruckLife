@@ -230,18 +230,24 @@ def representative_solution_table(reps):
     return pd.DataFrame(rows)
 
 def run_single_experiment(config):
-
     """
-    Runs one optimization experiment and returns:
+    Runs one MOGA optimization experiment and returns:
     {
+        "Algorithm": "MOGA",
         "N": int,
-        "final_gd": float,
-        "final_hv": float,
-        "pareto_size": int,
-        "execution_time": float
+        "Final_GD": float,
+        "Final_HV": float,
+        "Pareto_Size": int,
+        "Execution_Time_sec": float,
+        "Best_Total_Distance": float,
+        "Best_Wait_Time": float,
+        "Best_Total_Cost": float
     }
     """
 
+    # ==================================================
+    # Load Data
+    # ==================================================
     ex_data = func.read_csv_to_list(config["filepath_order"])
     product_list = func.read_csv_to_list(config["filepath_product"])
     new_order = func.product_to_weight(ex_data, product_list)
@@ -255,9 +261,15 @@ def run_single_experiment(config):
         config["warehouse_location"], new_order
     )
 
+    # ==================================================
+    # Initialize Fitness Log
+    # ==================================================
     with open(config["fitness_log"], "w") as f:
         f.write("gen,z1_distance,z2_wait_time,z3_cost\n")
 
+    # ==================================================
+    # Run MOGA
+    # ==================================================
     start_time = time.time()
 
     best_solution, final_population = genetic_func.optimize_routes(
@@ -271,52 +283,75 @@ def run_single_experiment(config):
         mutation_rate=config["mutation_rate"],
         generations=config["generations"],
     )
-    best_distance = best_solution.fitness[0]
-    best_cost = best_solution.fitness[1]
 
     execution_time = time.time() - start_time
 
-    # Build Pareto
+    # ==================================================
+    # Build Pareto Front From Final Population
+    # ==================================================
     pareto_candidates = []
+
     for sol in final_population:
         z1 = func.calculate_total_distance(sol, distance_matrix)
+
         z2, _ = func.calculate_wait_time_and_outsourcingscore(
             sol, new_order, time_matrix, genetic_func.desired_delivery_date
         )
+
         z3 = func.calculate_outsourcing_fee(
             sol, new_order, distance_matrix, genetic_func.desired_delivery_date
         )
 
-        pareto_candidates.append({"z1": z1, "z2": z2, "z3": z3})
+        pareto_candidates.append({
+            "z1": float(z1),
+            "z2": float(z2),
+            "z3": float(z3)
+        })
 
     def dominates(a, b):
         return (
-            (a["z1"] <= b["z1"] and a["z2"] <= b["z2"] and a["z3"] <= b["z3"])
-            and (a["z1"] < b["z1"] or a["z2"] < b["z2"] or a["z3"] < b["z3"])
+            (a["z1"] <= b["z1"] and
+             a["z2"] <= b["z2"] and
+             a["z3"] <= b["z3"])
+            and
+            (a["z1"] < b["z1"] or
+             a["z2"] < b["z2"] or
+             a["z3"] < b["z3"])
         )
 
     pareto_front = [
         c for c in pareto_candidates
-        if not any(dominates(o, c) for o in pareto_candidates)
+        if not any(dominates(other, c) for other in pareto_candidates)
     ]
 
-    # Load fitness log
+    # Safety fallback
+    if len(pareto_front) == 0:
+        print("WARNING: Pareto front empty. Using full population.")
+        pareto_front = pareto_candidates
+
+    # ==================================================
+    # Select Representative Solution (Min Cost)
+    # ==================================================
+    best_solution = min(pareto_front, key=lambda x: x["z3"])
+
+    best_distance = best_solution["z1"]
+    best_wait_time = best_solution["z2"]
+    best_cost = best_solution["z3"]
+
+    # ==================================================
+    # Compute GD & HV From Log
+    # ==================================================
     gens, Z = load_fitness_log(config["fitness_log"])
+
     gd_values = compute_gd_from_best(Z)
     hv_values = compute_hv_from_best(Z)
 
     final_gd = float(gd_values[-1]) if len(gd_values) > 0 else None
     final_hv = float(hv_values[-1]) if len(hv_values) > 0 else None
 
-    # For Scailiily test
-    # return {
-    # "N": N,
-    # "Final_GD": final_gd,
-    # "Final_HV": final_hv,
-    # "Pareto_Size": len(pareto_front),
-    # "Execution_Time_sec": execution_time
-    # }
-
+    # ==================================================
+    # Return Results
+    # ==================================================
     return {
         "Algorithm": "MOGA",
         "N": N,
@@ -325,6 +360,7 @@ def run_single_experiment(config):
         "Pareto_Size": len(pareto_front),
         "Execution_Time_sec": execution_time,
         "Best_Total_Distance": best_distance,
+        "Best_Wait_Time": best_wait_time,
         "Best_Total_Cost": best_cost
     }
 
@@ -552,7 +588,7 @@ def main():
         "generations": 150,
         "truck_weights": [500, 500, 1000, 1000, 2000],
         "filepath_product": os.path.join(INPUT_DIR, "product.csv"),
-        "filepath_order": os.path.join(INPUT_DIR, "order500.csv"),
+        "filepath_order": os.path.join(INPUT_DIR, "order100.csv"),
         "fitness_log": os.path.join(OUTPUT_DIR, "fitness_log_MOGA.txt"),
         "working_hours": {
             "start": "07:00",
